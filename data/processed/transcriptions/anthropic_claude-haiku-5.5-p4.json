@@ -1,0 +1,615 @@
+{
+ "enclosure_heading": "EXPLOSIONPROOF - CSA",
+ "tables": [
+  {
+   "title": "110V - Single Phase Power",
+   "rows": [
+    {
+     "part_number": "761X30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 690,
+      "torque_nm": 80,
+      "duty_pct": 40
+     },
+     "modulating": {
+      "torque_in_lb": 550,
+      "torque_nm": 65,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 190,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 20,
+      "fla": 1.2,
+      "lra": 1.4
+     },
+     "at_50hz": {
+      "speed_sec": 23,
+      "fla": 1.1,
+      "lra": 1.3
+     },
+     "no_frequency": null,
+     "motor_watts": 15
+    },
+    {
+     "part_number": "761Y30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 860,
+      "torque_nm": 100,
+      "duty_pct": 40
+     },
+     "modulating": {
+      "torque_in_lb": 680,
+      "torque_nm": 80,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 190,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 20,
+      "fla": 1.2,
+      "lra": 1.4
+     },
+     "at_50hz": {
+      "speed_sec": 23,
+      "fla": 1.1,
+      "lra": 1.3
+     },
+     "no_frequency": null,
+     "motor_watts": 15
+    },
+    {
+     "part_number": "762X30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 1350,
+      "torque_nm": 150,
+      "duty_pct": 70
+     },
+     "modulating": {
+      "torque_in_lb": 1150,
+      "torque_nm": 130,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 100,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 21,
+      "fla": 2.0,
+      "lra": 2.5
+     },
+     "at_50hz": {
+      "speed_sec": 25,
+      "fla": 1.9,
+      "lra": 2.4
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "762Y30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 1770,
+      "torque_nm": 200,
+      "duty_pct": 70
+     },
+     "modulating": {
+      "torque_in_lb": 1360,
+      "torque_nm": 160,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 100,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 21,
+      "fla": 2.3,
+      "lra": 2.5
+     },
+     "at_50hz": {
+      "speed_sec": 25,
+      "fla": 2.2,
+      "lra": 2.4
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "763X30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 2640,
+      "torque_nm": 300,
+      "duty_pct": 70
+     },
+     "modulating": {
+      "torque_in_lb": 2110,
+      "torque_nm": 240,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 80,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 26,
+      "fla": 2.3,
+      "lra": 2.9
+     },
+     "at_50hz": {
+      "speed_sec": 31,
+      "fla": 2.0,
+      "lra": 3.0
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "763Y30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 3980,
+      "torque_nm": 450,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 3180,
+      "torque_nm": 360,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 170,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 29,
+      "fla": 4.5,
+      "lra": 5.0
+     },
+     "at_50hz": {
+      "speed_sec": 35,
+      "fla": 3.8,
+      "lra": 4.9
+     },
+     "no_frequency": null,
+     "motor_watts": 90
+    },
+    {
+     "part_number": "764X30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 6900,
+      "torque_nm": 800,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 5520,
+      "torque_nm": 640,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 160,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 31,
+      "fla": 5.1,
+      "lra": 7.3
+     },
+     "at_50hz": {
+      "speed_sec": 37,
+      "fla": 5.0,
+      "lra": 7.4
+     },
+     "no_frequency": null,
+     "motor_watts": 90
+    },
+    {
+     "part_number": "764Y30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 9600,
+      "torque_nm": 1100,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 7680,
+      "torque_nm": 880,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 160,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 31,
+      "fla": 5.4,
+      "lra": 7.3
+     },
+     "at_50hz": {
+      "speed_sec": 37,
+      "fla": 5.4,
+      "lra": 7.4
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    },
+    {
+     "part_number": "765X30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 17500,
+      "torque_nm": 2000,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 14000,
+      "torque_nm": 1600,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 50,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 93,
+      "fla": 5.8,
+      "lra": 7.3
+     },
+     "at_50hz": {
+      "speed_sec": 112,
+      "fla": 5.7,
+      "lra": 7.4
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    },
+    {
+     "part_number": "765Y30-11300000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 25900,
+      "torque_nm": 3000,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 20720,
+      "torque_nm": 2400,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 50,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 93,
+      "fla": 6.3,
+      "lra": 7.3
+     },
+     "at_50hz": {
+      "speed_sec": 112,
+      "fla": 6.3,
+      "lra": 7.4
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    }
+   ]
+  },
+  {
+   "title": "220V - Single Phase Power",
+   "rows": [
+    {
+     "part_number": "761X30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 690,
+      "torque_nm": 80,
+      "duty_pct": 40
+     },
+     "modulating": {
+      "torque_in_lb": 550,
+      "torque_nm": 65,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 190,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 20,
+      "fla": 0.6,
+      "lra": 0.7
+     },
+     "at_50hz": {
+      "speed_sec": 23,
+      "fla": 0.6,
+      "lra": 0.7
+     },
+     "no_frequency": null,
+     "motor_watts": 15
+    },
+    {
+     "part_number": "761Y30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 790,
+      "torque_nm": 90,
+      "duty_pct": 40
+     },
+     "modulating": {
+      "torque_in_lb": 630,
+      "torque_nm": 72,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 190,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 20,
+      "fla": 0.6,
+      "lra": 0.7
+     },
+     "at_50hz": {
+      "speed_sec": 23,
+      "fla": 0.6,
+      "lra": 0.7
+     },
+     "no_frequency": null,
+     "motor_watts": 15
+    },
+    {
+     "part_number": "762X30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 1350,
+      "torque_nm": 150,
+      "duty_pct": 35
+     },
+     "modulating": {
+      "torque_in_lb": 1150,
+      "torque_nm": 130,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 180,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 23,
+      "fla": 1.0,
+      "lra": 1.2
+     },
+     "at_50hz": {
+      "speed_sec": 28,
+      "fla": 0.9,
+      "lra": 1.1
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "762Y30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 1590,
+      "torque_nm": 180,
+      "duty_pct": 35
+     },
+     "modulating": {
+      "torque_in_lb": 1270,
+      "torque_nm": 145,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 180,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 23,
+      "fla": 1.1,
+      "lra": 1.2
+     },
+     "at_50hz": {
+      "speed_sec": 28,
+      "fla": 1.0,
+      "lra": 1.1
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "763X30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 2300,
+      "torque_nm": 260,
+      "duty_pct": 40
+     },
+     "modulating": {
+      "torque_in_lb": 1900,
+      "torque_nm": 220,
+      "duty_pct": 40
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 140,
+     "starts_per_hour": 960,
+     "at_60hz": {
+      "speed_sec": 26,
+      "fla": 1.3,
+      "lra": 1.4
+     },
+     "at_50hz": {
+      "speed_sec": 31,
+      "fla": 1.3,
+      "lra": 1.5
+     },
+     "no_frequency": null,
+     "motor_watts": 40
+    },
+    {
+     "part_number": "763Y30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 3980,
+      "torque_nm": 450,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 3180,
+      "torque_nm": 360,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 170,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 29,
+      "fla": 1.9,
+      "lra": 2.4
+     },
+     "at_50hz": {
+      "speed_sec": 35,
+      "fla": 1.5,
+      "lra": 2.5
+     },
+     "no_frequency": null,
+     "motor_watts": 90
+    },
+    {
+     "part_number": "764X30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 6900,
+      "torque_nm": 800,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 5520,
+      "torque_nm": 640,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 140,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 34,
+      "fla": 2.4,
+      "lra": 3.8
+     },
+     "at_50hz": {
+      "speed_sec": 41,
+      "fla": 2.2,
+      "lra": 3.9
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    },
+    {
+     "part_number": "764Y30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 8300,
+      "torque_nm": 940,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 6640,
+      "torque_nm": 750,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 140,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 34,
+      "fla": 3.4,
+      "lra": 3.8
+     },
+     "at_50hz": {
+      "speed_sec": 41,
+      "fla": 3.3,
+      "lra": 3.9
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    },
+    {
+     "part_number": "765X30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 17500,
+      "torque_nm": 2000,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 14000,
+      "torque_nm": 1600,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 50,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 93,
+      "fla": 2.4,
+      "lra": 3.8
+     },
+     "at_50hz": {
+      "speed_sec": 112,
+      "fla": 2.2,
+      "lra": 3.9
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    },
+    {
+     "part_number": "765Y30-11320000/A",
+     "not_csa_certified": false,
+     "not_available": false,
+     "on_off": {
+      "torque_in_lb": 25900,
+      "torque_nm": 3000,
+      "duty_pct": 30
+     },
+     "modulating": {
+      "torque_in_lb": 20720,
+      "torque_nm": 2400,
+      "duty_pct": 30
+     },
+     "unspecified_service": null,
+     "cycles_per_hour": 50,
+     "starts_per_hour": 720,
+     "at_60hz": {
+      "speed_sec": 93,
+      "fla": 3.4,
+      "lra": 3.8
+     },
+     "at_50hz": {
+      "speed_sec": 112,
+      "fla": 3.3,
+      "lra": 3.9
+     },
+     "no_frequency": null,
+     "motor_watts": 180
+    }
+   ]
+  }
+ ]
+}

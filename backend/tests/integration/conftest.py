@@ -1,7 +1,6 @@
 """Integration tests run against real PostgreSQL 18, built by applying the migrations."""
 
 import os
-import secrets
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -17,9 +16,11 @@ from alembic import command
 from seed import seed
 from src.core.config import Settings, get_settings
 from src.main import create_app
+from tests.fakes import ScriptedChatModel
 
 BACKEND = Path(__file__).resolve().parents[2]
-JWT_SECRET = secrets.token_hex(32)
+# Fixed, because importing this module from a test evaluates it a second time, and a random value would differ.
+JWT_SECRET = "integration-tests-only-" + "x" * 32
 
 # On Windows, localhost tries IPv6 first and stalls before reaching the published port.
 os.environ.setdefault("TESTCONTAINERS_HOST_OVERRIDE", "127.0.0.1")
@@ -46,8 +47,13 @@ def database_url(alembic_config: Config) -> Iterator[str]:
 
 
 @pytest.fixture(scope="session")
-async def app(database_url: str) -> AsyncIterator[FastAPI]:
-    application = create_app(Settings(database_url=database_url, jwt_secret=JWT_SECRET))
+def chat_model() -> ScriptedChatModel:
+    return ScriptedChatModel()
+
+
+@pytest.fixture(scope="session")
+async def app(database_url: str, chat_model: ScriptedChatModel) -> AsyncIterator[FastAPI]:
+    application = create_app(Settings(database_url=database_url, jwt_secret=JWT_SECRET), chat_model=chat_model)
     async with application.router.lifespan_context(application):
         yield application
 

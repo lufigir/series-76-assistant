@@ -83,7 +83,7 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "Application layers point downwards"
 type = "layers"
-layers = ["src.main", "src.auth | src.agent", "src.actuators", "src.core"]
+layers = ["src.main", "src.conversations", "src.auth | src.agent", "src.actuators", "src.core"]
 
 [[tool.importlinter.contracts]]
 name = "Inside auth: router > dependencies > service > repository"
@@ -105,6 +105,19 @@ layers = [
     "src.actuators.repository | src.actuators.matching",
     "src.actuators.models | src.actuators.notes | src.actuators.part_numbers | src.actuators.schemas",
     "src.actuators.enums",
+]
+
+[[tool.importlinter.contracts]]
+name = "Inside conversations: router > dependencies > service > repository"
+type = "layers"
+layers = [
+    "src.conversations.router",
+    "src.conversations.dependencies",
+    "src.conversations.service",
+    "src.conversations.repository",
+    "src.conversations.models",
+    "src.conversations.schemas",
+    "src.conversations.enums",
 ]
 
 [[tool.importlinter.contracts]]
@@ -137,6 +150,9 @@ source_modules = [
     "src.core.errors",
     "src.core.llm",
     "src.core.logging",
+    "src.conversations.router",
+    "src.conversations.schemas",
+    "src.conversations.service",
     "src.main",
 ]
 forbidden_modules = ["sqlalchemy"]

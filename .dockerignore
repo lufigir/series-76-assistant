@@ -1,0 +1,9 @@
+*
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/.python-version
+!backend/alembic/
+!backend/seed.py
+!backend/src/
+!data/processed/actuators.json
+**/__pycache__/

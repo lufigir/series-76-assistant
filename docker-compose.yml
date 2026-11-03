@@ -1,0 +1,44 @@
+name: series-76-assistant
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: series76
+      POSTGRES_PASSWORD: series76
+      POSTGRES_DB: series76
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      # Since PostgreSQL 18 the image keeps its data in a versioned folder under this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U series76 -d series76"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://series76:series76@db:5432/series76
+    command: >
+      sh -c "alembic upgrade head && python seed.py &&
+      exec uvicorn --factory src.main:create_app --host 0.0.0.0 --port 8000 --no-access-log"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+volumes:
+  db-data:

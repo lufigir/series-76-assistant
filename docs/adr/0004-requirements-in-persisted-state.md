@@ -8,7 +8,9 @@ A user builds a request across turns: "explosionproof, 110 V", then "at least 50
 
 ## Decision
 
-`update_requirements` writes changes to a typed `Requirements` object in the agent's persisted state, and `find_actuators` takes no parameters: it filters by that state. The model reports what changed, and code holds the total.
+`find_actuators` takes only what changed in this turn (`changes`, `clear`, `reset`), merges it into a typed `Requirements` object in the agent's persisted state, and filters by the result. The model reports what changed, and code holds the total.
+
+The first design had two tools, `update_requirements` and a `find_actuators` with no parameters. We merged them before writing any of it. Tool calls in one model response read the same state, because sibling writes land at the end of the super-step, so a model that called both at once would search with the old requirements. Merging removes that case and also saves a model call on every recommendation. If a response still asks for two searches, code keeps the first.
 
 ## Consequences
 

@@ -13,7 +13,7 @@ The assessment's hardest rule is that the numbers a user sees must match the tab
 
 ## Decision
 
-Typed tools: `get_actuator`, `update_requirements`, `find_actuators` and, if the evals ask for it, `compare_actuators`. All of them are read-only over the catalog.
+Typed tools: `get_actuator`, `find_actuators` and `get_data_sheet_notes`. All of them are read-only over the catalog. Comparing two models takes two `get_actuator` calls, and the first eval run showed no need for a tool of its own.
 
 Two published results point the same way, and neither is our setting. dbt's 2026 benchmark measured 98.2 % and 100 % accuracy through its semantic layer against 90.0 % and 84.1 % for text-to-SQL, and dbt sells that layer. MACS (arXiv 2608.14068) runs hard-constraint filtering and relaxation in deterministic code and reached a macro Pass@5 of 72 % against 56 % and 52 % for catalog-bound prompts, on 10 multi-turn e-commerce scenarios.
 

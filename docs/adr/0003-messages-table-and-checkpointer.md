@@ -22,4 +22,8 @@ The saver uses a long-lived `AsyncConnectionPool`, opened in the lifespan with `
 
 One turn writes to two places, so a failure between them can leave them out of step. We accept that here: the app reads `messages`, and the worst case is an agent that remembers a turn the user was told failed.
 
+Those tables have no foreign key to `users`, so deleting a user removes the conversations and messages and leaves the checkpoints behind. No endpoint deletes users today; one that does has to clear them too.
+
+A second turn on a busy conversation answers 409. The turn takes a lease in `conversations.busy_until` with one `UPDATE`, instead of a lock, because a lock would pin a pooled connection for the whole model call. A crash can only block the conversation until the lease runs out.
+
 `AsyncPostgresSaver` serializes work behind one lock per instance (langgraph issue 7259, open). That is acceptable for a few simultaneous turns and would not be under real traffic.

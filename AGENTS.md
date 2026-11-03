@@ -23,11 +23,12 @@ A plant engineering team picks Series 76 electric actuators by searching the man
 
 ## Layers
 
-The dependency rule is `router > dependencies > service > repository > models`, and `src.main > features > src.core`. `uv run lint-imports` fails the build on a violation, and its contracts in `backend/pyproject.toml` are the authority.
+The dependency rule is `router > dependencies > service > repository > models`, and `src.main > conversations > agent | auth > actuators > core`. `uv run lint-imports` fails the build on a violation, and its contracts in `backend/pyproject.toml` are the authority.
 
 - Repositories are the only path to the database, and they return Pydantic schemas.
 - Rules that decide something are pure modules with table tests, like `actuators/matching.py`.
-- The agent reaches data through its tools, and the tools through the repositories.
+- The agent reaches data through its tools, and the tools through `ActuatorService`.
+- A request holds no database connection during a model call: `ConversationRepository.release_connection` and `acquire` end the transaction first.
 - The model's output is untrusted input. Code owns filtering, relaxation, unit handling and the `products` in a response; `docs/adr/` records why.
 
 A new feature follows `src/auth/`: `models`, `schemas`, `repository`, `service`, `dependencies`, `router`, then its contract in `pyproject.toml` and its tests. A schema change goes through `alembic revision --autogenerate --rev-id NNNN`, read and tidied before it is committed.
@@ -72,6 +73,8 @@ After cloning, run `uv run --directory backend pre-commit install`.
 
 Python commands run from `backend/` with `uv run`. On Windows, prefix them with `PYTHONUTF8=1` and use `127.0.0.1` for local services, because `localhost` tries IPv6 first and stalls. psycopg's async mode also needs a selector event loop there, so run the API in Docker.
 
+`uv run python -m tests.evals.run` runs the golden set in `tests/evals/` against the configured model, on a throwaway PostgreSQL. It spends that provider's budget, so it stays out of CI. Run it after any change to a prompt, a tool description or the model, and keep `--delay` at 8 or more on Google's free tier.
+
 Keys live only in the ignored `.env`. During development, use Google AI Studio's free tier or free OpenRouter models; the assessment's OpenRouter key has a hard budget and is reserved for the final check.
 
 ## Personal data
@@ -82,18 +85,19 @@ Keys live only in the ignored `.env`. During development, use Google AI Studio's
 | OpenRouter and its model providers | Conversation text, audio to transcribe | Answering and transcribing |
 | Google AI Studio, free tier, development only | Test conversations and audio; its terms allow training and human review | Evals |
 
-Only test users and catalog questions go to these services. Deleting a user cascades to their conversations and messages.
+Only test users and catalog questions go to these services. Deleting a user cascades to their conversations and messages; checkpoints have no foreign key and need their own cleanup (ADR 3).
 
 ## Resource budget
 
 | Resource | Limit | Expected | Driven by |
 |---|---|---|---|
 | Queries per catalog lookup or search | 3 (asserted in a test) | 3 | One actuator query and two `selectinload` |
-| Database connections | Pool of 5, overflow 5 | Under 5 | A few simultaneous turns in an evaluation |
-| OpenRouter budget | What `/api/v1/credits` reports; read it before a run | USD 0.0007 per turn, estimated with Haiku 5.5 | 2 model calls per turn |
+| Database connections | Pool of 5, overflow 5, plus 5 for the checkpointer | Under 5 each | A few simultaneous turns in an evaluation |
+| Model calls per turn | 6, plus one validator retry; 8 tool calls; 800 output tokens per call | 1.9, measured | `MAX_MODEL_CALLS` and `MAX_TOOL_CALLS` |
+| OpenRouter budget | What `/api/v1/credits` reports; read it before a run | USD 0.0004 per turn, estimated with Haiku 5.5 prices from the tokens measured on Gemini (3,478 in, 78 out) | 1.9 model calls per turn |
 | Full ingestion | Same budget | USD 0.05, measured | Reuse `--saved` instead |
-| Google free tier | Per minute and per day; not measured yet | Evals at a controlled pace | Eval repetitions |
+| Google free tier | 15 requests per minute on `gemini-3.5-flash-lite`, measured; per day not measured | About 90 requests per eval pass | Eval repetitions |
 
 ## Versions
 
-`backend/uv.lock` pins everything and `exclude-newer = "7 days"` keeps out releases younger than a week. Main versions: Python 3.13, FastAPI 0.162, SQLAlchemy 2.1, Alembic 1.20, psycopg 3.3, PostgreSQL 18. Look up the documentation for these versions before relying on an API.
+`backend/uv.lock` pins everything and `exclude-newer = "7 days"` keeps out releases younger than a week. Main versions: Python 3.13, FastAPI 0.162, SQLAlchemy 2.1, Alembic 1.20, psycopg 3.3, PostgreSQL 18, LangChain 1.4, LangGraph 1.2. Look up the documentation for these versions before relying on an API.

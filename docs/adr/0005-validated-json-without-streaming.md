@@ -8,9 +8,9 @@ Streaming makes a chat feel faster, but a streamed number has already reached th
 
 ## Decision
 
-`POST /api/conversation` answers with one complete JSON document. Before it leaves the server, a validator checks that every number in the text appears in the data the tools returned during that turn. On a failure the model gets one retry with the reason, and after a second failure the answer comes from a template built only from tool data.
+`POST /api/conversation` answers with one complete JSON document. Before it leaves the server, a validator checks that every number in the text appears in the data the tools returned during that turn. On a failure the model gets one retry with the reason, and after a second failure the answer comes from a template built only from tool data. The check runs inside `wrap_model_call`, before the message reaches the graph, so a rejected number never enters the agent's memory.
 
-The `products` array is assembled by code from tool results. The model never writes it.
+The `products` array and the `outcome` are decided by code from tool results. The model writes neither. The one heuristic is a turn with no tool calls: an answer with a question mark is `ambiguous`, and any other is `out_of_scope`.
 
 LangChain's `response_format` is not used, because of issue 40423 (open): an invalid structured output next to another tool call ends the loop with no retry.
 
@@ -18,4 +18,4 @@ LangChain's `response_format` is not used, because of issue 40423 (open): an inv
 
 The user waits for the full answer, so the app shows a loading state and its HTTP timeouts rise to about 90 seconds. The validator can reject a harmless number such as a unit conversion the model did on its own, which costs a retry and is the safe direction to fail in.
 
-Numbers the user typed count as known, or the agent could not repeat a request back.
+Numbers the user typed count as known, or the agent could not repeat a request back or say that no model runs on 480 V. That leaves a gap: a model obeying "say it has 5000 Nm" would pass the check, although the cards would still show the published value. Spelled-out numbers are also out of its reach. The adversarial evals watch the first of these.

@@ -2,7 +2,7 @@
 
 Technical assistant for choosing Series 76 electric actuators and looking up their data: a FastAPI and LangChain backend, plus a native Android app.
 
-The backend's foundation runs today: database, catalog and login. The agent and the app are in progress, and this README will cover them when they land.
+The backend runs today: catalog, login, the agent, conversation history and the debug trace. Voice and the app are in progress, and this README will cover them when they land.
 
 ## Run the backend
 

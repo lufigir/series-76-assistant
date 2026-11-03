@@ -34,6 +34,9 @@ def configure_logging(level: str) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=level, handlers=[handler], force=True)
+    # Their INFO lines repeat every provider call and quote its error text, which adds nothing to our own logs.
+    for noisy in ("httpx", "google_genai"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 class TraceMiddleware:

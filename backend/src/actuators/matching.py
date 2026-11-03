@@ -8,7 +8,6 @@ that was compared. Only ft-lb, which the data sheet does not print, is derived, 
 from src.actuators.enums import Frequency, PowerSupply, RatingService, RequestedSupply, TorqueUnit
 from src.actuators.schemas import ActuatorData, Candidate, Electrical, Rating, Requirements, UnmetRequirement
 
-IN_LB_PER_FT_LB = 12
 MAX_MATCHES = 5
 MAX_ALTERNATIVES = 3
 # A miss with no numeric distance, such as a certification, counts like being 50 % away on a number.
@@ -33,7 +32,7 @@ def _torque_unmet(rating: Rating, requirements: Requirements) -> UnmetRequiremen
     published = {
         TorqueUnit.IN_LB: rating.torque_in_lb,
         TorqueUnit.NM: rating.torque_nm,
-        TorqueUnit.FT_LB: rating.torque_in_lb / IN_LB_PER_FT_LB,
+        TorqueUnit.FT_LB: rating.torque_ft_lb,
     }[wanted.unit]
     if published >= wanted.value:
         return None

@@ -6,6 +6,11 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.16",
     "fastapi>=0.120",
+    "langchain>=1.2",
+    "langchain-google-genai>=4.0",
+    "langchain-openrouter>=0.2.9",
+    "langgraph>=1.0",
+    "langgraph-checkpoint-postgres>=3.0",
     "psycopg[binary,pool]>=3.2",
     "pwdlib[argon2]>=0.2",
     "pydantic>=2.12",
@@ -27,7 +32,6 @@ dev = [
     "testcontainers[postgres]>=4.10",
 ]
 ingest = [
-    "langchain-openrouter>=0.2.9",
     "pymupdf>=1.26",
     "python-dotenv>=1.1",
 ]
@@ -56,6 +60,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 "ingest.py" = ["T20"]
 "seed.py" = ["S105", "S106", "T20"]
 "tests/**" = ["S101", "S105", "S106"]
+"tests/evals/run.py" = ["S101", "S105", "S106", "T20"]
 
 [tool.mypy]
 files = ["src", "seed.py"]
@@ -78,7 +83,7 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "Application layers point downwards"
 type = "layers"
-layers = ["src.main", "src.auth | src.actuators", "src.core"]
+layers = ["src.main", "src.auth | src.agent", "src.actuators", "src.core"]
 
 [[tool.importlinter.contracts]]
 name = "Inside auth: router > dependencies > service > repository"
@@ -95,10 +100,23 @@ layers = [
 name = "Inside actuators: service > repository, and matching stays pure"
 type = "layers"
 layers = [
+    "src.actuators.provider",
     "src.actuators.service",
     "src.actuators.repository | src.actuators.matching",
-    "src.actuators.models | src.actuators.part_numbers | src.actuators.schemas",
+    "src.actuators.models | src.actuators.notes | src.actuators.part_numbers | src.actuators.schemas",
     "src.actuators.enums",
+]
+
+[[tool.importlinter.contracts]]
+name = "Inside agent: assistant > middleware > tools, and the rules stay pure"
+type = "layers"
+layers = [
+    "src.agent.assistant",
+    "src.agent.middleware",
+    "src.agent.tools | src.agent.prompts",
+    "src.agent.state",
+    "src.agent.fallback | src.agent.outcome",
+    "src.agent.number_validator | src.agent.schemas",
 ]
 
 [[tool.importlinter.contracts]]
@@ -106,15 +124,18 @@ name = "Only repositories, models and dependency wiring touch the ORM"
 type = "forbidden"
 source_modules = [
     "src.actuators.matching",
+    "src.actuators.notes",
     "src.actuators.part_numbers",
     "src.actuators.schemas",
     "src.actuators.service",
+    "src.agent",
     "src.auth.router",
     "src.auth.schemas",
     "src.auth.security",
     "src.auth.service",
     "src.core.config",
     "src.core.errors",
+    "src.core.llm",
     "src.core.logging",
     "src.main",
 ]

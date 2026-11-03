@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,6 +17,14 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = Field(min_length=32)
     jwt_expire_minutes: int = Field(default=720, gt=0)
     log_level: str = "INFO"
+
+    llm_provider: Literal["openrouter", "google"] = "openrouter"
+    llm_model: str = "anthropic/claude-haiku-5.5"
+    llm_max_output_tokens: int = Field(default=800, gt=0)
+    llm_timeout_seconds: int = Field(default=30, gt=0)
+    turn_timeout_seconds: int = Field(default=75, gt=0)
+    openrouter_api_key: SecretStr | None = None
+    google_api_key: SecretStr | None = None
 
 
 @lru_cache

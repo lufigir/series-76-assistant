@@ -56,7 +56,9 @@ class Row(BaseModel):
     not_available: bool = Field(description="True if the row's values are shown as N/A")
     on_off: Rating | None = Field(description="The On/Off torque and duty columns")
     modulating: Rating | None = Field(description="The Modulating torque and duty columns")
-    unspecified_service: Rating | None = Field(description="Only for tables with plain 'Output Torque' and 'Duty Cycle' columns")
+    unspecified_service: Rating | None = Field(
+        description="Only for tables with plain 'Output Torque' and 'Duty Cycle' columns"
+    )
     cycles_per_hour: int | None
     starts_per_hour: int | None
     at_60hz: Electrical | None = Field(description="The 60 Hz speed, FLA and LRA columns")
@@ -75,7 +77,8 @@ class Page(BaseModel):
     tables: list[Table]
 
 
-PROMPT = """Transcribe every table on this page exactly as printed. It is the only source of truth for an engineering tool, so a wrong digit is a serious error.
+PROMPT = """Transcribe every table on this page exactly as printed. \
+It is the only source of truth for an engineering tool, so a wrong digit is a serious error.
 
 - Commas in the numbers are thousands separators: 1,330 is 1330, and 1,100 is 1100.
 - Copy each value from its own column, using the two-level header. Do not compute, convert or correct anything.
@@ -84,13 +87,48 @@ PROMPT = """Transcribe every table on this page exactly as printed. It is the on
 
 # (enclosure, power heading) -> voltage code in the part number, row count, supply, service types
 TABLES = {
-    ("weatherproof", "110V - Single Phase Power"): {"code": "1130", "rows": 11, "supply": "110V single phase", "service": "on_off_and_modulating"},
-    ("weatherproof", "220V - Single Phase Power"): {"code": "1132", "rows": 16, "supply": "220V single phase", "service": "on_off_and_modulating"},
-    ("weatherproof", "220V - 3 Phase Power"): {"code": "1133", "rows": 11, "supply": "220V three phase", "service": "unspecified"},
-    ("explosionproof", "24V AC/DC Power - On/Off"): {"code": "1138", "rows": 5, "supply": "24V AC/DC", "service": "on_off"},
-    ("explosionproof", "24V DC Power - Modulating"): {"code": "1137", "rows": 5, "supply": "24V DC", "service": "modulating"},
-    ("explosionproof", "110V - Single Phase Power"): {"code": "1130", "rows": 10, "supply": "110V single phase", "service": "on_off_and_modulating"},
-    ("explosionproof", "220V - Single Phase Power"): {"code": "1132", "rows": 10, "supply": "220V single phase", "service": "on_off_and_modulating"},
+    ("weatherproof", "110V - Single Phase Power"): {
+        "code": "1130",
+        "rows": 11,
+        "supply": "110V single phase",
+        "service": "on_off_and_modulating",
+    },
+    ("weatherproof", "220V - Single Phase Power"): {
+        "code": "1132",
+        "rows": 16,
+        "supply": "220V single phase",
+        "service": "on_off_and_modulating",
+    },
+    ("weatherproof", "220V - 3 Phase Power"): {
+        "code": "1133",
+        "rows": 11,
+        "supply": "220V three phase",
+        "service": "unspecified",
+    },
+    ("explosionproof", "24V AC/DC Power - On/Off"): {
+        "code": "1138",
+        "rows": 5,
+        "supply": "24V AC/DC",
+        "service": "on_off",
+    },
+    ("explosionproof", "24V DC Power - Modulating"): {
+        "code": "1137",
+        "rows": 5,
+        "supply": "24V DC",
+        "service": "modulating",
+    },
+    ("explosionproof", "110V - Single Phase Power"): {
+        "code": "1130",
+        "rows": 10,
+        "supply": "110V single phase",
+        "service": "on_off_and_modulating",
+    },
+    ("explosionproof", "220V - Single Phase Power"): {
+        "code": "1132",
+        "rows": 10,
+        "supply": "220V single phase",
+        "service": "on_off_and_modulating",
+    },
 }
 ENCLOSURE_CODE = {"weatherproof": "00", "explosionproof": "30"}
 PART_NUMBER = re.compile(r"^76[1-7][A-Z](00|30)-(\d{4})[0-9A-Z]{4}/A$")
@@ -110,10 +148,12 @@ def render_pages(only: set[int] | None) -> dict[int, str]:
 def extract(model: str, image: str) -> Page:
     llm = ChatOpenRouter(model=model, temperature=0, timeout=REQUEST_TIMEOUT_MS, max_retries=2)
     structured = llm.with_structured_output(Page, method="json_schema")
-    message = HumanMessage(content=[
-        {"type": "text", "text": PROMPT},
-        {"type": "image", "base64": image, "mime_type": "image/png"},
-    ])
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": PROMPT},
+            {"type": "image", "base64": image, "mime_type": "image/png"},
+        ]
+    )
     return structured.invoke([message])
 
 
@@ -172,7 +212,9 @@ def check(records: dict[str, dict]) -> list[str]:
         for name in ("on_off", "modulating", "unspecified_service"):
             rating = record[name]
             if rating and not IN_LB_PER_NM[0] <= rating["torque_in_lb"] / rating["torque_nm"] <= IN_LB_PER_NM[1]:
-                problems.append(f"{key}: {name} {rating['torque_in_lb']} in-lb and {rating['torque_nm']} Nm are inconsistent")
+                problems.append(
+                    f"{key}: {name} {rating['torque_in_lb']} in-lb and {rating['torque_nm']} Nm are inconsistent"
+                )
         for name in ("at_60hz", "at_50hz", "no_frequency"):
             electrical = record[name]
             if electrical and electrical["fla"] > electrical["lra"]:
@@ -221,14 +263,16 @@ def transcribe(models: list[str], only: set[int] | None) -> list[tuple[str, Page
     with ThreadPoolExecutor(max_workers=4) as pool:
         pages = list(pool.map(lambda job: extract(job[0], images[job[1]]), jobs))
     TRANSCRIPTIONS.mkdir(parents=True, exist_ok=True)
-    for (model, number), page in zip(jobs, pages):
+    for (model, number), page in zip(jobs, pages, strict=True):
         transcription_path(model, number).write_text(page.model_dump_json(indent=1), encoding="utf-8")
-    return [(model, page) for (model, _), page in zip(jobs, pages)]
+    return [(model, page) for (model, _), page in zip(jobs, pages, strict=True)]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--saved", action="store_true", help="reuse the saved transcriptions instead of calling the models")
+    parser.add_argument(
+        "--saved", action="store_true", help="reuse the saved transcriptions instead of calling the models"
+    )
     parser.add_argument("--pages", help="comma-separated pages to try, without writing the output")
     args = parser.parse_args()
 

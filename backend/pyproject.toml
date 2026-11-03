@@ -1,10 +1,122 @@
 [project]
 name = "series-76-backend"
 version = "0.1.0"
-requires-python = ">=3.13"
+description = "FastAPI and LangChain backend of the Series 76 technical assistant"
+requires-python = ">=3.13,<3.14"
 dependencies = [
-    "langchain-openrouter>=0.2.9",
-    "pydantic>=2.12.5",
-    "pymupdf>=2.1",
-    "python-dotenv>=1.2.4",
+    "alembic>=1.16",
+    "fastapi>=0.120",
+    "psycopg[binary,pool]>=3.2",
+    "pwdlib[argon2]>=0.2",
+    "pydantic>=2.12",
+    "pydantic-settings>=2.10",
+    "pyjwt>=2.10",
+    "sqlalchemy[asyncio]>=2.1",
+    "uvicorn>=0.35",
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "import-linter>=2.3",
+    "mypy>=1.17",
+    "pre-commit>=4.2",
+    "pytest>=8.4",
+    "pytest-asyncio>=1.1",
+    "ruff>=0.12",
+    "testcontainers[postgres]>=4.10",
+]
+ingest = [
+    "langchain-openrouter>=0.2.9",
+    "pymupdf>=1.26",
+    "python-dotenv>=1.1",
+]
+
+[tool.uv]
+default-groups = ["dev", "ingest"]
+exclude-newer = "7 days"
+no-build = true
+package = false
+
+[tool.alembic]
+script_location = "%(here)s/alembic"
+prepend_sys_path = ["%(here)s"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "C4", "DTZ", "E", "ERA", "F", "FIX", "I", "N", "PTH", "RUF", "S", "SIM", "T20", "TD", "UP", "W"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[tool.ruff.lint.per-file-ignores]
+"ingest.py" = ["T20"]
+"seed.py" = ["S105", "S106", "T20"]
+"tests/**" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+files = ["src", "seed.py"]
+plugins = ["pydantic.mypy"]
+strict = true
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+asyncio_mode = "auto"
+filterwarnings = ["error"]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "src"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Application layers point downwards"
+type = "layers"
+layers = ["src.main", "src.auth | src.actuators", "src.core"]
+
+[[tool.importlinter.contracts]]
+name = "Inside auth: router > dependencies > service > repository"
+type = "layers"
+layers = [
+    "src.auth.router",
+    "src.auth.dependencies",
+    "src.auth.service",
+    "src.auth.repository",
+    "src.auth.models | src.auth.schemas | src.auth.security",
+]
+
+[[tool.importlinter.contracts]]
+name = "Inside actuators: service > repository, and matching stays pure"
+type = "layers"
+layers = [
+    "src.actuators.service",
+    "src.actuators.repository | src.actuators.matching",
+    "src.actuators.models | src.actuators.part_numbers | src.actuators.schemas",
+    "src.actuators.enums",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only repositories, models and dependency wiring touch the ORM"
+type = "forbidden"
+source_modules = [
+    "src.actuators.matching",
+    "src.actuators.part_numbers",
+    "src.actuators.schemas",
+    "src.actuators.service",
+    "src.auth.router",
+    "src.auth.schemas",
+    "src.auth.security",
+    "src.auth.service",
+    "src.core.config",
+    "src.core.errors",
+    "src.core.logging",
+    "src.main",
+]
+forbidden_modules = ["sqlalchemy"]
+allow_indirect_imports = true

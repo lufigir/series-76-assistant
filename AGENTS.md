@@ -32,6 +32,16 @@ The dependency rule is `router > dependencies > service > repository > models`, 
 
 A new feature follows `src/auth/`: `models`, `schemas`, `repository`, `service`, `dependencies`, `router`, then its contract in `pyproject.toml` and its tests. A schema change goes through `alembic revision --autogenerate --rev-id NNNN`, read and tidied before it is committed.
 
+## Skills
+
+`.claude/skills/README.md` records where each skill comes from. FastAPI ships its own for the installed version, in `backend/.venv/Lib/site-packages/fastapi/.agents/skills/fastapi/` (`lib/python3.13/site-packages` on Linux and macOS).
+
+This file and `docs/adr/` outrank the LangChain skills, which show general examples. For this project:
+
+- The final answer is validated code-side JSON, with no `response_format` (ADR 5).
+- `AsyncPostgresSaver` runs on a long-lived `AsyncConnectionPool`, in place of the `from_conn_string` context manager (ADR 3).
+- Tools are read-only, so `HumanInTheLoopMiddleware` has no role here. Limits per turn use `ToolCallLimitMiddleware` and `ModelCallLimitMiddleware`.
+
 ## Data
 
 `data/raw/series_76_electric_data.pdf` is the only source of numbers; the summary PDF gives context and its example part number is not in the tables. `ingest.py --saved` rebuilds `data/processed/actuators.json` at no cost. A full run calls paid models, so it needs the user's approval.

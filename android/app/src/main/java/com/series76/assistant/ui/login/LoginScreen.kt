@@ -1,6 +1,5 @@
 package com.series76.assistant.ui.login
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -38,7 +36,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.series76.assistant.ui.components.CapsLabel
 import com.series76.assistant.ui.theme.Series76Theme
 
 @Composable
@@ -58,22 +55,15 @@ fun LoginScreen(uiState: LoginUiState, onSubmit: (String, String) -> Unit) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()),
-            contentAlignment = Alignment.CenterStart,
+            contentAlignment = Alignment.TopStart,
         ) {
             Column(
-                modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(28.dp),
+                modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 88.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Box(
-                    Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.primary),
-                )
-                CapsLabel("Series 76 · Electric actuators")
+                Text("Series 76", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    "The data sheet, ready to answer.",
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-                Text(
-                    "Look up any part number, or describe the job and get the models that fit.",
+                    "Sign in to look up electric actuator data.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -105,7 +95,7 @@ fun LoginScreen(uiState: LoginUiState, onSubmit: (String, String) -> Unit) {
                     onClick = submit,
                     enabled = canSubmit,
                     shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
                 ) {
                     if (uiState.loading) {
                         CircularProgressIndicator(

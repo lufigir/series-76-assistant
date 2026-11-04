@@ -112,58 +112,98 @@ class ComparisonModelTest {
     }
 
     @Test
-    fun `key figures read as published, with the service and frequency of each`() {
-        val figures = keyFigures(actuator(), TorqueDisplay.IN_LB)
+    fun `a data sheet table reads as published, with services and frequencies as columns`() {
+        val tables =
+            specTables(
+                actuator(
+                    ratings = listOf(Rating("on_off", 690, 80, 57.5, 40), Rating("modulating", 550, 65, 45.8, 35)),
+                    electricals = listOf(Electrical("60hz", 20, 1.2, 1.4), Electrical("50hz", 23, 1.1, 1.3)),
+                ),
+                TorqueDisplay.IN_LB,
+            )
         assertEquals(
             listOf(
-                KeyFigure("Torque, on/off", "690", "in-lb"),
-                KeyFigure("Duty, on/off", "40", "%"),
-                KeyFigure("Speed at 60 Hz", "20", "s"),
-                KeyFigure("FLA at 60 Hz", "1.2", "A"),
+                SpecTable(
+                    listOf("On/off", "Modulating"),
+                    listOf(SpecRow("Torque (in-lb)", listOf("690", "550")), SpecRow("Duty (%)", listOf("40", "35"))),
+                ),
+                SpecTable(
+                    listOf("60 Hz", "50 Hz"),
+                    listOf(
+                        SpecRow("Speed (s)", listOf("20", "23")),
+                        SpecRow("FLA (A)", listOf("1.2", "1.1")),
+                        SpecRow("LRA (A)", listOf("1.4", "1.3")),
+                    ),
+                ),
             ),
-            figures,
+            tables,
         )
     }
 
     @Test
-    fun `key figures hold every service and frequency, so a follow-up on any of them finds its number`() {
-        val figures =
-            keyFigures(
-                actuator(
-                    ratings = listOf(Rating("on_off", 690, 80, 57.5, 40), Rating("modulating", 550, 65, 45.8, 40)),
-                    electricals = listOf(Electrical("60hz", 20, 1.2, 1.4), Electrical("50hz", 23, 1.1, 1.3)),
-                ),
-                TorqueDisplay.NM,
-            ).associate { it.label to it.value }
-        assertEquals("65", figures["Torque, modulating"])
-        assertEquals("23", figures["Speed at 50 Hz"])
-        assertEquals("1.1", figures["FLA at 50 Hz"])
-    }
-
-    @Test
-    fun `a collapsed comparison keeps the 50 Hz rows`() {
-        assertTrue(isKeyRow("Speed at 50 Hz (s)"))
-        assertTrue(isKeyRow("FLA at 50 Hz (A)"))
-        assertFalse(isKeyRow("LRA at 50 Hz (A)"))
-    }
-
-    @Test
-    fun `a three phase row says its service is not stated`() {
+    fun `a three phase rating says its service is not stated`() {
         val threePhase = actuator(ratings = listOf(Rating("unspecified", 690, 80, 57.5, 40)))
-        assertEquals("Torque, service not stated", keyFigures(threePhase, TorqueDisplay.NM).first().label)
+        assertEquals("Service not stated", specTables(threePhase, TorqueDisplay.NM).first().columns.single())
     }
 
     @Test
-    fun `a model without data has no key figures to show`() {
+    fun `a table with a single speed has no frequency to name`() {
+        val lowVoltage = actuator(electricals = listOf(Electrical("none", 20, 1.2, 1.4)))
+        assertEquals("All", specTables(lowVoltage, TorqueDisplay.NM).last().columns.single())
+    }
+
+    @Test
+    fun `a model without data has no tables to show`() {
         val listed = actuator(ratings = emptyList(), electricals = emptyList(), notAvailable = true)
-        assertTrue(keyFigures(listed, TorqueDisplay.NM).isEmpty())
+        assertTrue(specTables(listed, TorqueDisplay.NM).isEmpty())
     }
 
     @Test
-    fun `outcomes read in plain words and declining is not shown as an error`() {
-        assertEquals("No exact match", outcomeLabel("no_match"))
+    fun `more specifications holds only what the card does not already show`() {
+        assertEquals(
+            listOf("Table service", "CSA certified", "Cycles per hour", "Starts per hour"),
+            extraRows(actuator(), TorqueDisplay.NM).map { it.label },
+        )
+    }
+
+    @Test
+    fun `a collapsed comparison keeps torque and what differs, with the 50 Hz rows`() {
+        val faster = actuator(torqueNm = 80, electricals = listOf(Electrical("50hz", 23, 1.1, 1.3)))
+        val labels = collapsedRows(rows(actuator(torqueNm = 80), faster)).map { it.label }
+        assertEquals(
+            listOf("Torque, on/off (Nm)", "Speed at 60 Hz (s)", "FLA at 60 Hz (A)", "Speed at 50 Hz (s)", "FLA at 50 Hz (A)"),
+            labels,
+        )
+    }
+
+    @Test
+    fun `a collapsed comparison of identical models still shows its key rows`() {
+        val labels = collapsedRows(rows(actuator(), actuator())).map { it.label }
+        assertTrue("Torque, on/off (Nm)" in labels)
+        assertTrue("Duty, on/off (%)" in labels)
+    }
+
+    @Test
+    fun `only an outcome the reader should notice gets a note`() {
+        assertNull(outcomeNote("answered"))
+        assertNull(outcomeNote("recommendation"))
+        assertEquals("No exact match", outcomeNote("no_match"))
         assertEquals(OutcomeTone.CAUTION, outcomeTone("no_match"))
         assertEquals(OutcomeTone.NEGATIVE, outcomeTone("invalid_part_number"))
         assertEquals(OutcomeTone.NEUTRAL, outcomeTone("out_of_scope"))
+    }
+
+    @Test
+    fun `a conversation is named after its first question`() {
+        val messages = listOf(ChatMessage("1", true, "Torque of 761A?"), ChatMessage("2", false, "It delivers 80 Nm."))
+        assertEquals("Torque of 761A?", conversationTitle(messages, loading = false))
+        assertEquals("New conversation", conversationTitle(emptyList(), loading = false))
+        assertEquals("", conversationTitle(emptyList(), loading = true))
+    }
+
+    @Test
+    fun `a long wait says so`() {
+        assertEquals("Checking the data tables", workingText(9))
+        assertEquals("Still checking. This can take up to a minute.", workingText(10))
     }
 }

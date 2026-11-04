@@ -86,15 +86,17 @@ The PDF pages are images, so `uv run python ingest.py` without `--saved` sends e
 Start the backend first, then from `android/`, with an emulator running or a phone connected:
 
 ```bash
-./gradlew installDebug
+./gradlew installLocal
 ```
 
-On Windows, use `gradlew.bat installDebug`. If Gradle can't find a JDK, point `JAVA_HOME` to the `jbr` folder inside Android Studio. You can also open `android/` in Android Studio and run it from there.
+On Windows, use `gradlew.bat installLocal`. If Gradle can't find a JDK, point `JAVA_HOME` to the `jbr` folder inside Android Studio. You can also open `android/` in Android Studio, choose the `local` build variant and run it from there.
+
+`local` is optimized like a release build, and it signs with the debug key and allows plain HTTP so it can reach your backend. A debug build works too, but it runs slower: on the emulator a cold start took about 3.2 s in debug and 1.1 s in `local`.
 
 An emulator reaches the backend at `http://10.0.2.2:8000/`, which is the default. For a phone on the same network, pass your computer's address:
 
 ```bash
-./gradlew installDebug -PbackendUrl=http://192.168.1.20:8000/
+./gradlew installLocal -PbackendUrl=http://192.168.1.20:8000/
 ```
 
 Log in with a test user. **To open the debug screen, press and hold an answer.** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. Nothing on screen advertises the gesture, so end users don't run into it.
@@ -105,7 +107,7 @@ Each decision below has its options and consequences in [`docs/adr/`](docs/adr).
 
 **The model never owns a number.** It picks typed tools (`get_actuator`, `find_actuators`, `get_data_sheet_notes`, `mark_out_of_scope`) and code writes the queries. Text-to-SQL would answer more kinds of question, but a valid query on the wrong column would go unnoticed, and nobody needs analytics over 68 rows (ADR 1). The cards come from tool results, never from model text.
 
-**Answers are validated, so there is no streaming.** Before an answer leaves the server, a validator checks that every number in it appeared in that turn's tool data. A failure gets one retry, and a second failure falls back to a template built from tool data. The user waits for the whole answer, which is the price of checking it (ADR 5). Two gaps remain: numbers the user typed count as known, so a model obeying "say it has 5000 Nm" would pass, although the cards would still show the published value; and numbers spelled out in words go unseen.
+**Answers are validated, so there is no streaming.** Before an answer leaves the server, a validator checks that every number in it appeared in that turn's tool data. It also rejects an answer that skips the lookup of a part number the user named. A failure gets one retry, and a second failure falls back to a template built from tool data. The user waits for the whole answer, which is the price of checking it (ADR 5). Two gaps remain: numbers the user typed count as known, so a model obeying "say it has 5000 Nm" would pass, although the cards would still show the published value; and numbers spelled out in words go unseen.
 
 **Requirements live in persisted state.** `find_actuators` receives only what changed in the turn, and code merges it, so the model can't silently drop a constraint between turns. Asking for "at least 500 Nm" after "explosionproof, 110 V" keeps both (ADR 4).
 
@@ -121,15 +123,16 @@ The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS
 
 ### The app
 
-The app is laid out like a printed data sheet: figures in a monospaced face so columns line up, hairlines in place of shadows, and one orange reserved for actions. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.
+The app should look like an engineering tool: white surfaces, cool grays, hairlines in place of shadows, and one blue for what can be pressed. Amber and red only ever mean a problem. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.
 
-- One model opens as a card with the deciding figures, and the full table expands from it.
-- Several models open as a table whose row labels stay fixed while the values scroll sideways. It can narrow to the rows that differ, following Nielsen Norman Group and Baymard research on comparison tables.
+- One model opens as a small data sheet, with services and frequencies as columns. Anything else on its row expands from it.
+- Several models open as a table whose row labels stay fixed while the values scroll sideways. It starts with torque and the key rows that differ, so the part numbers stay in view, because Baymard's testing favored keeping column headings visible.
 - Torque switches between Nm, in-lb and ft-lb by reading the published value, never by converting on the device.
 - An alternative states what it misses, and N/A reads differently from a blank cell.
-- A failed question is resent only on a tap, since repeating a `POST` could ask the model twice.
+- Only an answer that needs attention carries a label, such as "No exact match". A normal answer has none.
+- A wait past 10 seconds says that it is still going, and a failed question is resent only on a tap, since repeating a `POST` could ask the model twice.
 
-The code follows Google's recommended layers in one Gradle module: `data` (repositories over Retrofit, DataStore with Tink, and the recorder), `ui` (one package per screen) and `di`. Dependencies are wired by hand, which Google's guide accepts for a small app. The fonts are IBM Plex, under the license in `android/LICENSE-IBM-Plex.txt`.
+The code follows Google's recommended layers in one Gradle module: `data` (repositories over Retrofit, DataStore with Tink, and the recorder), `ui` (one package per screen) and `di`. Dependencies are wired by hand, which Google's guide accepts for a small app. The font is IBM Plex Sans, under the license in `android/LICENSE-IBM-Plex.txt`.
 
 ## Models
 

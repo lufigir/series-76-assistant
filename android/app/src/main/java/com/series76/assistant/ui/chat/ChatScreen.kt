@@ -5,9 +5,15 @@ import android.content.ClipData
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +23,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +30,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,7 +54,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,15 +61,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -77,11 +87,18 @@ import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.Electrical
 import com.series76.assistant.data.remote.Rating
 import com.series76.assistant.data.remote.Requirements
-import com.series76.assistant.ui.components.CapsLabel
 import com.series76.assistant.ui.components.ErrorState
+import com.series76.assistant.ui.components.ListPlaceholder
 import com.series76.assistant.ui.components.PulsingDot
+import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.Series76Theme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val USER_ITEM = "user"
+private const val ASSISTANT_ITEM = "assistant"
+private const val WORKING_ITEM = "working"
+private const val ONE_SECOND_MILLIS = 1000L
 
 @Composable
 fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String) -> Unit) {
@@ -125,17 +142,37 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     val itemCount = uiState.messages.size + if (uiState.sending) 1 else 0
 
-    // Aligns the newest item's top, so a long table opens at its answer and not at its last row.
+    // Saved, so that coming back from the debug screen or a rotation keeps the reader's place instead of jumping.
+    var placedItems by rememberSaveable { mutableIntStateOf(0) }
+    // Aligns the newest item's top, so a long table opens at its answer and not at its last row. History jumps there
+    // at once, because scrolling through a whole conversation on opening it only looks like the screen is lost.
     LaunchedEffect(itemCount) {
-        if (itemCount > 0) listState.animateScrollToItem(itemCount - 1)
+        if (itemCount > 0 && itemCount != placedItems) {
+            if (placedItems == 0) listState.scrollToItem(itemCount - 1) else listState.animateScrollToItem(itemCount - 1)
+        }
+        placedItems = itemCount
     }
-    val canJump by remember { derivedStateOf { listState.canScrollForward } }
+    // A long answer can fill the screen by itself, and being inside it is not being behind.
+    val canJump by remember {
+        derivedStateOf {
+            val layout = listState.layoutInfo
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index
+            lastVisible != null && lastVisible < layout.totalItemsCount - 1
+        }
+    }
 
     Scaffold(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Conversation") },
+                    title = {
+                        Text(
+                            conversationTitle(uiState.messages, uiState.loadingHistory),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -161,8 +198,7 @@ fun ChatScreen(
             uiState.requirements?.let { RequirementsStrip(requirementChips(it)) }
             Box(modifier = Modifier.weight(1f)) {
                 when {
-                    uiState.loadingHistory ->
-                        Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+                    uiState.loadingHistory -> ListPlaceholder()
                     uiState.historyError != null -> ErrorState(uiState.historyError, onRetryHistory)
                     uiState.messages.isEmpty() && !uiState.sending -> StartPanel(onPick = onDraftChange)
                     else ->
@@ -172,34 +208,50 @@ fun ChatScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
-                            items(uiState.messages, key = { it.id }) { message ->
-                                if (message.fromUser) {
-                                    UserMessage(message, onRetry = { onRetrySend(message) })
-                                } else {
-                                    AssistantMessage(
-                                        message = message,
-                                        unit = preferredUnit(uiState.requirements),
-                                        onSuggestion = onSuggestion,
-                                        onOpenDebug = { onOpenDebug(message.id) },
-                                    )
+                            items(
+                                uiState.messages,
+                                key = { it.id },
+                                contentType = { if (it.fromUser) USER_ITEM else ASSISTANT_ITEM },
+                            ) { message ->
+                                Box(Modifier.animateItem()) {
+                                    if (message.fromUser) {
+                                        UserMessage(message, onRetry = { onRetrySend(message) })
+                                    } else {
+                                        AssistantMessage(
+                                            message = message,
+                                            unit = preferredUnit(uiState.requirements),
+                                            onSuggestion = onSuggestion,
+                                            onOpenDebug = { onOpenDebug(message.id) },
+                                        )
+                                    }
                                 }
                             }
                             if (uiState.sending) {
-                                item(key = "sending") { WorkingRow("Checking the data tables") }
+                                item(key = WORKING_ITEM, contentType = WORKING_ITEM) {
+                                    Box(Modifier.animateItem()) { WorkingAnswer() }
+                                }
                             }
                         }
                 }
-                if (canJump && uiState.messages.isNotEmpty()) {
-                    SmallFloatingActionButton(
-                        onClick = { scope.launch { listState.animateScrollToItem(itemCount - 1) } },
-                        shape = CircleShape,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                    ) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Go to the latest answer")
-                    }
-                }
+                JumpToLatest(
+                    visible = canJump && uiState.messages.isNotEmpty(),
+                    onClick = { scope.launch { listState.animateScrollToItem(itemCount - 1) } },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun JumpToLatest(visible: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(tween(120)), exit = fadeOut(tween(120)), modifier = modifier) {
+        SmallFloatingActionButton(
+            onClick = onClick,
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Go to the latest answer")
         }
     }
 }
@@ -211,63 +263,50 @@ private fun preferredUnit(requirements: Requirements?): TorqueDisplay =
 private fun RequirementsStrip(chips: List<String>) {
     if (chips.isEmpty()) return
     Column {
-        Row(
+        Text(
+            chips.joinToString(" · "),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
             modifier =
                 Modifier.fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CapsLabel("Spec")
-            chips.forEachIndexed { index, chip ->
-                if (index > 0) {
-                    Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(chip, style = MaterialTheme.typography.labelLarge)
-            }
-        }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+        )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
+private data class Starter(val task: String, val query: String)
+
 private val STARTERS =
     listOf(
-        "What is the torque of 761A00-11300000/A?",
-        "I need an explosionproof actuator at 220 V, modulating, with at least 500 Nm",
-        "Compare the 110 V weatherproof models above 1000 Nm",
+        Starter("Look up a part number", "What is the torque of 761A00-11300000/A?"),
+        Starter("Find a model", "Explosionproof at 220 V, modulating, with at least 500 Nm"),
+        Starter("Compare", "The 110 V weatherproof models above 1000 Nm"),
     )
 
 @Composable
 private fun StartPanel(onPick: (String) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-    ) {
-        Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.primary))
-        Text("What are you specifying?", style = MaterialTheme.typography.headlineSmall)
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Text(
-            "Give a part number, or describe the job: enclosure, power supply, service and torque.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            "Ask by part number or by requirements. Every figure comes from the Series 76 data tables.",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 20.dp),
         )
-        Spacer(Modifier.height(4.dp))
-        CapsLabel("Try")
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         STARTERS.forEach { starter ->
-            Surface(
-                onClick = { onPick(starter) },
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth(),
+            Column(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .clickable { onPick(starter.query) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(
-                    starter,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                )
+                SectionLabel(starter.task)
+                Text(starter.query, style = MaterialTheme.typography.bodyMedium)
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -281,8 +320,8 @@ private fun UserMessage(message: ChatMessage, onRetry: () -> Unit) {
             style = MaterialTheme.typography.bodyLarge,
             modifier =
                 Modifier.widthIn(max = 320.dp)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.medium)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.medium)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
         )
         message.error?.let { error ->
             Text(
@@ -305,31 +344,22 @@ private fun AssistantMessage(
     onOpenDebug: () -> Unit,
 ) {
     val clipboard = LocalClipboard.current
+    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     Column(
         // pointerInput and not combinedClickable, which would announce the gesture to end users using TalkBack.
         modifier =
-            Modifier.fillMaxWidth().pointerInput(message.id) { detectTapGestures(onLongPress = { onOpenDebug() }) },
+            Modifier.fillMaxWidth().pointerInput(message.id) {
+                detectTapGestures(
+                    onLongPress = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenDebug()
+                    },
+                )
+            },
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            OutcomeLabel(message.outcome, modifier = Modifier.weight(1f))
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("answer", message.text)))
-                    }
-                },
-                modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_copy),
-                    contentDescription = "Copy answer",
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        OutcomeNote(message.outcome)
         Text(message.text, style = MaterialTheme.typography.bodyLarge)
         when (message.products.size) {
             0 -> Unit
@@ -345,40 +375,60 @@ private fun AssistantMessage(
             )
         }
         if (message.suggestions.isNotEmpty()) {
-            CapsLabel("Did you mean")
+            SectionLabel("Did you mean")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 message.suggestions.forEach { suggestion ->
                     SuggestionChip(onClick = { onSuggestion(suggestion) }, label = { Text(suggestion) })
                 }
             }
         }
+        IconButton(
+            onClick = {
+                scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("answer", message.text))) }
+            },
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_copy),
+                contentDescription = "Copy answer",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
 @Composable
-private fun OutcomeLabel(outcome: String?, modifier: Modifier = Modifier) {
-    val label = outcomeLabel(outcome)
-    val color =
-        when (outcomeTone(outcome)) {
-            OutcomeTone.POSITIVE -> MaterialTheme.colorScheme.primary
-            OutcomeTone.CAUTION -> MaterialTheme.colorScheme.tertiary
-            OutcomeTone.NEGATIVE -> MaterialTheme.colorScheme.error
-            OutcomeTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+private fun OutcomeNote(outcome: String?) {
+    val note = outcomeNote(outcome) ?: return
+    Text(
+        note,
+        style = MaterialTheme.typography.labelLarge,
+        color =
+            when (outcomeTone(outcome)) {
+                OutcomeTone.CAUTION -> MaterialTheme.colorScheme.tertiary
+                OutcomeTone.NEGATIVE -> MaterialTheme.colorScheme.error
+                OutcomeTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+    )
+}
+
+@Composable
+private fun WorkingAnswer() {
+    val elapsed by
+        produceState(0) {
+            while (true) {
+                delay(ONE_SECOND_MILLIS)
+                value += 1
+            }
         }
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Box(Modifier.size(8.dp).background(color, CircleShape))
-        CapsLabel(label, color = color)
-    }
+    WorkingRow(workingText(elapsed))
 }
 
 @Composable
 private fun WorkingRow(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        PulsingDot()
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -405,15 +455,9 @@ private fun Composer(
         if (granted) onToggleRecording() else permission.launch(Manifest.permission.RECORD_AUDIO)
     }
 
-    Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .navigationBarsPadding()
-                .imePadding(),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             uiState.voiceError?.let {
                 Text(
                     it,
@@ -422,41 +466,68 @@ private fun Composer(
                     modifier = Modifier.padding(horizontal = 6.dp),
                 )
             }
-            when (uiState.voice) {
-                VoiceState.RECORDING -> RecordingBar(onStop = onToggleRecording, onCancel = onCancelRecording)
-                VoiceState.TRANSCRIBING ->
-                    Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), Alignment.CenterStart) {
-                        WorkingRow("Transcribing. You can review it before sending.")
-                    }
-                VoiceState.IDLE ->
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        OutlinedTextField(
-                            value = draft,
-                            onValueChange = onDraftChange,
-                            placeholder = { Text("Ask about an actuator") },
-                            shape = MaterialTheme.shapes.medium,
-                            maxLines = 4,
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(onClick = onMic, modifier = Modifier.size(52.dp)) {
-                            Icon(
-                                painterResource(R.drawable.ic_mic),
-                                contentDescription = "Record a voice message",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            AnimatedContent(
+                targetState = uiState.voice,
+                transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+                label = "composer",
+            ) { voice ->
+                when (voice) {
+                    VoiceState.RECORDING -> RecordingBar(onStop = onToggleRecording, onCancel = onCancelRecording)
+                    VoiceState.TRANSCRIBING ->
+                        Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), Alignment.CenterStart) {
+                            WorkingRow("Transcribing. You can review it before sending.")
                         }
-                        FilledIconButton(
-                            onClick = onSend,
-                            enabled = draft.isNotBlank() && !uiState.sending,
-                            shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier.size(52.dp),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                        }
-                    }
+                    VoiceState.IDLE -> TextComposer(draft, onDraftChange, uiState.sending, onSend, onMic)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextComposer(
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    sending: Boolean,
+    onSend: () -> Unit,
+    onMic: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinedTextField(
+            value = draft,
+            onValueChange = onDraftChange,
+            placeholder = { Text("Ask about an actuator") },
+            shape = MaterialTheme.shapes.medium,
+            maxLines = 4,
+            modifier = Modifier.weight(1f),
+        )
+        // One slot for both: with nothing to send, the microphone is the only action that makes sense.
+        AnimatedContent(
+            targetState = draft.isBlank(),
+            transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+            label = "action",
+        ) { empty ->
+            if (empty) {
+                IconButton(onClick = onMic, modifier = Modifier.size(56.dp)) {
+                    Icon(
+                        painterResource(R.drawable.ic_mic),
+                        contentDescription = "Record a voice message",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                FilledIconButton(
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onSend()
+                    },
+                    enabled = !sending,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                }
             }
         }
     }

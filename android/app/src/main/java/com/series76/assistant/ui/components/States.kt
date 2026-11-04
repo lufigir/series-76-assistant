@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.series76.assistant.ui.theme.CapsLabelStyle
 
 // Both scroll, so that pull-to-refresh still works on a screen with nothing else to scroll.
 @Composable
@@ -41,7 +40,7 @@ fun ErrorState(message: String, onRetry: () -> Unit, contentPadding: PaddingValu
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        CapsLabel("Something went wrong", color = MaterialTheme.colorScheme.error)
+        SectionLabel("Something went wrong", color = MaterialTheme.colorScheme.error)
         Text(message, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge)
         FilledTonalButton(onClick = onRetry) { Text("Try again") }
     }
@@ -66,8 +65,8 @@ fun EmptyState(title: String, detail: String, contentPadding: PaddingValues = Pa
 }
 
 @Composable
-fun CapsLabel(text: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    Text(text.uppercase(), style = CapsLabelStyle, color = color, modifier = modifier)
+fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = color, modifier = modifier)
 }
 
 /** Says something is under way without pretending to know how far along it is. */

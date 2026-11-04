@@ -9,21 +9,19 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,55 +30,111 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.series76.assistant.data.remote.ActuatorData
-import com.series76.assistant.ui.components.CapsLabel
-import com.series76.assistant.ui.theme.KeyFigureStyle
+import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.PartNumberStyle
 import com.series76.assistant.ui.theme.SpecValueStyle
 
 private val LABEL_WIDTH = 124.dp
 
 // Wide enough that a second product runs off a phone's edge: the cut-off column is what says the table scrolls.
-private val COLUMN_WIDTH = 168.dp
+private val COLUMN_WIDTH = 156.dp
 
-private const val SOURCE_NOTE = "Values from the Series 76 electrical data tables."
+private val SpecTableLabelWidth = 104.dp
 
-/** One actuator, read like a data sheet: identity, the figures that decide, and the full table on request. */
+/** One actuator, read like a data sheet: identity, then its figures laid out by service and frequency. */
 @Composable
 fun ProductCard(product: ActuatorData, defaultUnit: TorqueDisplay) {
     var unit by rememberSaveable { mutableStateOf(defaultUnit) }
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val figures = remember(product, unit) { keyFigures(product, unit) }
-    val rows = remember(product, unit) { specRows(listOf(product), unit) }
+    val tables = remember(product, unit) { specTables(product, unit) }
+    val extras = remember(product, unit) { extraRows(product, unit) }
 
     DataPanel {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(product.partNumber, style = PartNumberStyle)
-            IdentityTags(product)
-            if (product.notAvailable) {
-                Notice("The data sheet lists this model as N/A, so it publishes no ratings for it.")
-            } else {
-                FigureGrid(figures)
-                UnitSwitch(unit, onChange = { unit = it })
+            Text(
+                "${enclosureLabel(product.enclosure)} · ${powerSupplyLabel(product.powerSupply)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (product.notCsaCertified) {
+                Text(
+                    "Not CSA certified",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
             }
         }
-        if (!product.notAvailable) {
-            ExpandRow(expanded, count = rows.size, onToggle = { expanded = !expanded })
+        if (product.notAvailable) {
+            Notice("The data sheet lists this model as N/A, so it publishes no ratings for it.")
+        } else {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (product.ratings.isNotEmpty()) {
+                UnitSwitch(
+                    unit,
+                    onChange = { unit = it },
+                    modifier = Modifier.align(Alignment.End).padding(horizontal = 6.dp),
+                )
+            }
+            tables.forEach { table -> SpecTableView(table) }
+            ExpandRow(if (expanded) "Show less" else "More specifications", onToggle = { expanded = !expanded })
             if (expanded) {
-                val scroll = rememberScrollState()
-                rows.forEachIndexed { index, row ->
+                extras.forEach { row ->
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    ValueRow(row, listOf(product.partNumber), scroll, comparing = false, shaded = index % 2 == 1)
+                    ValueRow(row, listOf(product.partNumber), rememberScrollState(), comparing = false)
                 }
             }
         }
-        SourceNote()
+    }
+}
+
+@Composable
+private fun SpecTableView(table: SpecTable) {
+    Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+            Box(Modifier.width(SpecTableLabelWidth))
+            table.columns.forEach { column ->
+                Text(
+                    column,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        table.rows.forEach { row ->
+            val spoken = row.label + ": " + table.columns.zip(row.values).joinToString(", ") { (c, v) -> "$c, $v" }
+            // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth().padding(vertical = 6.dp).clearAndSetSemantics {
+                        contentDescription = spoken
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    row.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(SpecTableLabelWidth),
+                )
+                row.values.forEach { value ->
+                    Text(value, style = SpecValueStyle, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
@@ -101,19 +155,20 @@ fun ComparisonTable(
         when {
             expanded && onlyDifferences -> allRows.filter { it.differs }
             expanded -> allRows
-            else -> allRows.filter { isKeyRow(it.label) }
+            else -> collapsedRows(allRows)
         }
     val scroll = rememberScrollState()
 
     DataPanel {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            CapsLabel(title)
-            UnitSwitch(unit, onChange = { unit = it })
-        }
         Row(
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer),
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            SectionLabel(title, modifier = Modifier.weight(1f))
+            UnitSwitch(unit, onChange = { unit = it })
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             RowLabel("Model")
             Cells(partNumbers, scroll, comparing = true, PartNumberStyle.copy(fontSize = 13.sp))
         }
@@ -128,9 +183,9 @@ fun ComparisonTable(
                 )
             }
         }
-        visibleRows.forEachIndexed { index, row ->
+        visibleRows.forEach { row ->
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            ValueRow(row, partNumbers, scroll, comparing = true, shaded = index % 2 == 1)
+            ValueRow(row, partNumbers, scroll, comparing = true)
         }
         if (visibleRows.isEmpty()) {
             Text(
@@ -139,58 +194,28 @@ fun ComparisonTable(
                 modifier = Modifier.padding(14.dp),
             )
         }
-        ExpandRow(expanded, count = allRows.size, onToggle = { expanded = !expanded })
+        ExpandRow(if (expanded) "Show less" else "All ${allRows.size} specifications", onToggle = { expanded = !expanded })
         if (expanded) {
             FilterChip(
                 selected = onlyDifferences,
                 onClick = { onlyDifferences = !onlyDifferences },
                 label = { Text("Only differences") },
-                modifier = Modifier.padding(horizontal = 14.dp),
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 6.dp),
             )
         }
-        SourceNote()
     }
 }
 
 @Composable
-private fun DataPanel(content: @Composable () -> Unit) {
+private fun DataPanel(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier =
             Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.medium)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
                 .animateContentSize(),
     ) {
         content()
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun IdentityTags(product: ActuatorData) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Tag(enclosureLabel(product.enclosure))
-        Tag(powerSupplyLabel(product.powerSupply))
-        if (product.notCsaCertified) Tag("Not CSA certified", warning = true)
-    }
-}
-
-@Composable
-private fun Tag(text: String, warning: Boolean = false) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelMedium,
-        color =
-            if (warning) MaterialTheme.colorScheme.onTertiaryContainer
-            else MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier =
-            Modifier.background(
-                if (warning) MaterialTheme.colorScheme.tertiaryContainer
-                else MaterialTheme.colorScheme.secondaryContainer,
-                MaterialTheme.shapes.small,
-            )
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-    )
 }
 
 @Composable
@@ -201,81 +226,43 @@ private fun Notice(text: String) {
         color = MaterialTheme.colorScheme.onTertiaryContainer,
         modifier =
             Modifier.fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
                 .background(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.shapes.small)
                 .padding(10.dp),
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FigureGrid(figures: List<KeyFigure>) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        maxItemsInEachRow = 2,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        figures.forEach { figure ->
-            Column(
+private fun UnitSwitch(unit: TorqueDisplay, onChange: (TorqueDisplay) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
+        TorqueDisplay.entries.forEach { option ->
+            val selected = option == unit
+            Text(
+                option.label,
+                style = MaterialTheme.typography.labelLarge,
+                color =
+                    if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier =
-                    Modifier.weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.small)
-                        .padding(10.dp)
-                        .clearAndSetSemantics {
-                            contentDescription = "${figure.label}: ${figure.value} ${figure.unit}"
-                        },
-            ) {
-                CapsLabel(figure.label)
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(figure.value, style = KeyFigureStyle)
-                    Text(
-                        figure.unit,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                }
-            }
+                    Modifier.minimumInteractiveComponentSize()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .selectable(selected = selected, role = Role.RadioButton, onClick = { onChange(option) })
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun UnitSwitch(unit: TorqueDisplay, onChange: (TorqueDisplay) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        CapsLabel("Torque in")
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.heightIn(max = 36.dp)) {
-            TorqueDisplay.entries.forEachIndexed { index, option ->
-                SegmentedButton(
-                    selected = option == unit,
-                    onClick = { onChange(option) },
-                    shape = SegmentedButtonDefaults.itemShape(index, TorqueDisplay.entries.size),
-                    label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
-                    icon = {},
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExpandRow(expanded: Boolean, count: Int, onToggle: () -> Unit) {
+private fun ExpandRow(text: String, onToggle: () -> Unit) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     Text(
-        if (expanded) "Show less" else "All $count specifications",
+        text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(14.dp),
-    )
-}
-
-@Composable
-private fun SourceNote() {
-    Text(
-        SOURCE_NOTE,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
     )
 }
 
@@ -290,13 +277,7 @@ private fun RowLabel(text: String, color: Color = MaterialTheme.colorScheme.onSu
 }
 
 @Composable
-private fun ValueRow(
-    row: SpecRow,
-    partNumbers: List<String>,
-    scroll: ScrollState,
-    comparing: Boolean,
-    shaded: Boolean,
-) {
+private fun ValueRow(row: SpecRow, partNumbers: List<String>, scroll: ScrollState, comparing: Boolean) {
     val spoken =
         if (comparing) {
             row.label + ": " + partNumbers.zip(row.values).joinToString(", ") { (part, value) -> "$part, $value" }
@@ -304,12 +285,7 @@ private fun ValueRow(
             row.label + ": " + row.values.first()
         }
     // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .background(if (shaded) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent)
-                .clearAndSetSemantics { contentDescription = spoken },
-    ) {
+    Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }) {
         RowLabel(row.label)
         Cells(row.values, scroll, comparing, SpecValueStyle)
     }

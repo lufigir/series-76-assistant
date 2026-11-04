@@ -152,24 +152,34 @@ fun specRows(products: List<ActuatorData>, unit: TorqueDisplay): List<SpecRow> {
         )
 }
 
-data class KeyFigure(val label: String, val value: String, val unit: String)
+/** One block of a data sheet: what the columns are, and a row of published figures per measure. */
+data class SpecTable(val columns: List<String>, val rows: List<SpecRow>)
 
-enum class OutcomeTone { POSITIVE, CAUTION, NEGATIVE, NEUTRAL }
+enum class OutcomeTone { CAUTION, NEGATIVE, NEUTRAL }
 
-fun outcomeLabel(outcome: String?): String =
+/** A note for the turns that did not simply answer. A normal answer needs no label to say that it is one. */
+fun outcomeNote(outcome: String?): String? =
     when (outcome) {
-        "recommendation" -> "Recommendation"
         "no_match" -> "No exact match"
         "invalid_part_number" -> "Part number not found"
         "missing_data" -> "Not published"
         "ambiguous" -> "Needs more detail"
         "out_of_scope" -> "Outside the catalog"
-        else -> "Answer"
+        else -> null
     }
+
+fun conversationTitle(messages: List<ChatMessage>, loading: Boolean): String =
+    messages.firstOrNull { it.fromUser }?.text ?: if (loading) "" else "New conversation"
+
+private const val LONG_WAIT_SECONDS = 10
+
+/** Past ten seconds a person's attention drifts, so the wait has to say that it is still going and for how long. */
+fun workingText(elapsedSeconds: Int): String =
+    if (elapsedSeconds < LONG_WAIT_SECONDS) "Checking the data tables"
+    else "Still checking. This can take up to a minute."
 
 fun outcomeTone(outcome: String?): OutcomeTone =
     when (outcome) {
-        "recommendation", "answered" -> OutcomeTone.POSITIVE
         "no_match", "missing_data", "ambiguous" -> OutcomeTone.CAUTION
         "invalid_part_number" -> OutcomeTone.NEGATIVE
         else -> OutcomeTone.NEUTRAL
@@ -183,36 +193,44 @@ fun powerSupplyLabel(raw: String): String = label(raw)
  * The figures an engineer decides on, read straight from the row: nothing here is computed or rounded. Every
  * service and frequency appears, because the card cannot tell which one a follow-up question was about.
  */
-fun keyFigures(product: ActuatorData, unit: TorqueDisplay): List<KeyFigure> {
-    val ratings =
-        product.ratings.flatMap { rating ->
-            val service =
-                when (rating.service) {
-                    "on_off" -> "on/off"
-                    "modulating" -> "modulating"
-                    else -> "service not stated"
-                }
-            listOf(
-                KeyFigure("Torque, $service", torque(rating, unit), unit.label),
-                KeyFigure("Duty, $service", rating.dutyPct.toString(), "%"),
-            )
-        }
-    val electricals =
-        product.electricals.flatMap { electrical ->
-            val frequency =
-                when (electrical.frequency) {
-                    "60hz" -> " at 60 Hz"
-                    "50hz" -> " at 50 Hz"
-                    else -> ""
-                }
-            listOf(
-                KeyFigure("Speed$frequency", electrical.speedSec.toString(), "s"),
-                KeyFigure("FLA$frequency", electrical.fla.toString(), "A"),
-            )
-        }
-    return ratings + electricals
+fun specTables(product: ActuatorData, unit: TorqueDisplay): List<SpecTable> {
+    val ratings = product.ratings
+    val electricals = product.electricals
+    return listOfNotNull(
+        SpecTable(
+            columns = ratings.map { if (it.service == "unspecified") "Service not stated" else label(it.service) },
+            rows =
+                listOf(
+                    SpecRow("Torque (${unit.label})", ratings.map { torque(it, unit) }),
+                    SpecRow("Duty (%)", ratings.map { it.dutyPct.toString() }),
+                ),
+        ).takeIf { ratings.isNotEmpty() },
+        SpecTable(
+            columns = electricals.map { if (it.frequency == "none") "All" else label(it.frequency) },
+            rows =
+                listOf(
+                    SpecRow("Speed (s)", electricals.map { it.speedSec.toString() }),
+                    SpecRow("FLA (A)", electricals.map { it.fla.toString() }),
+                    SpecRow("LRA (A)", electricals.map { it.lra.toString() }),
+                ),
+        ).takeIf { electricals.isNotEmpty() },
+    )
 }
 
-/** The rows a collapsed comparison shows: what usually decides between two models. */
-fun isKeyRow(label: String): Boolean =
-    listOf("Torque,", "Duty,", "Speed", "FLA", "CSA").any { label.startsWith(it) }
+private val SHOWN_ON_THE_CARD = listOf("Enclosure", "Power supply", "Torque,", "Duty,", "Speed", "FLA", "LRA")
+
+fun extraRows(product: ActuatorData, unit: TorqueDisplay): List<SpecRow> =
+    specRows(listOf(product), unit).filter { row -> SHOWN_ON_THE_CARD.none(row.label::startsWith) }
+
+private val KEY_ROWS = listOf("Torque,", "Duty,", "Speed", "FLA", "CSA")
+
+/**
+ * What a collapsed comparison shows: the measures that usually decide, minus any all models share. A short table
+ * also keeps the part numbers in sight, which is why torque stays even when it matches. Identical models keep every
+ * key row, since an empty table would say nothing.
+ */
+fun collapsedRows(rows: List<SpecRow>): List<SpecRow> {
+    val key = rows.filter { row -> KEY_ROWS.any(row.label::startsWith) }
+    return key.filter { it.differs || it.label.startsWith("Torque,") }.takeIf { selected -> selected.any { it.differs } }
+        ?: key
+}

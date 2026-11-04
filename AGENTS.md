@@ -78,7 +78,7 @@ Python commands run from `backend/` with `uv run`. On Windows, prefix them with 
 
 `uv run python -m tests.evals.run` runs the golden set in `tests/evals/` against the configured model, on a throwaway PostgreSQL. It spends that provider's budget, so it stays out of CI. Run it after any change to a prompt, a tool description or the model, and keep `--delay` at 8 or more on Google's free tier.
 
-The app builds with `./gradlew` from `android/`, with `JAVA_HOME` on Android Studio's `jbr`. `testDebugUnitTest` and `lintDebug` run in CI. On a fresh emulator, Gboard's stylus tutorial swallows text typed through adb until `adb shell settings put secure stylus_handwriting_enabled 0`.
+The app builds with `./gradlew` from `android/`, with `JAVA_HOME` on Android Studio's `jbr`. `testDebugUnitTest`, `lintDebug` and `assembleLocal` run in CI. Judge speed on `installLocal`, which runs R8 and allows plain HTTP for a local backend; a debug build is about three times slower to start. On a fresh emulator, Gboard's stylus tutorial swallows text typed through adb until `adb shell settings put secure stylus_handwriting_enabled 0`.
 
 Keys live only in the ignored `.env`. During development, use Google AI Studio's free tier or free OpenRouter models; the assessment's OpenRouter key has a hard budget and is reserved for the final check.
 

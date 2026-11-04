@@ -32,6 +32,8 @@ data class ConversationResponse(
     val products: List<ActuatorData>,
     val alternatives: List<Candidate>,
     val suggestions: List<String>,
+    val matches: List<String> = emptyList(),
+    @SerialName("follow_ups") val followUps: List<String> = emptyList(),
     val requirements: Requirements,
 )
 
@@ -44,6 +46,8 @@ data class MessageView(
     val products: List<ActuatorData> = emptyList(),
     val alternatives: List<Candidate> = emptyList(),
     val suggestions: List<String> = emptyList(),
+    val matches: List<String> = emptyList(),
+    @SerialName("follow_ups") val followUps: List<String> = emptyList(),
     val requirements: Requirements? = null,
 )
 

@@ -74,6 +74,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -220,6 +221,7 @@ fun ChatScreen(
                                         AssistantMessage(
                                             message = message,
                                             unit = preferredUnit(uiState.requirements),
+                                            isLatest = !uiState.sending && message === uiState.messages.last(),
                                             onSuggestion = onSuggestion,
                                             onOpenDebug = { onOpenDebug(message.id) },
                                         )
@@ -340,6 +342,7 @@ private fun UserMessage(message: ChatMessage, onRetry: () -> Unit) {
 private fun AssistantMessage(
     message: ChatMessage,
     unit: TorqueDisplay,
+    isLatest: Boolean,
     onSuggestion: (String) -> Unit,
     onOpenDebug: () -> Unit,
 ) {
@@ -361,17 +364,35 @@ private fun AssistantMessage(
     ) {
         OutcomeNote(message.outcome)
         Text(message.text, style = MaterialTheme.typography.bodyLarge)
-        when (message.products.size) {
-            0 -> Unit
-            1 -> ProductCard(message.products.single(), unit)
-            else -> ComparisonTable("${message.products.size} models", message.products, unit)
+        // Only on the latest answer: on an older one, a tap would answer a question the conversation has moved past.
+        // Above the results, because a long list would otherwise push the answer to a question off the screen.
+        if (isLatest && message.followUps.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                message.followUps.forEach { followUp ->
+                    SuggestionChip(onClick = { onSuggestion(followUp) }, label = { Text(followUp) })
+                }
+            }
+        }
+        if (message.products.isNotEmpty()) {
+            ProductResults(
+                title = resultsTitle(message.products.size, message.matches.isNotEmpty()),
+                products = message.products,
+                defaultUnit = unit,
+                requirements = message.requirements,
+                // A match met everything. A model from a lookup met nothing in particular, as it was never checked.
+                unmetByModel =
+                    message.products.map { product ->
+                        if (product.partNumber in message.matches) emptyList() else null
+                    },
+            )
         }
         if (message.alternatives.isNotEmpty()) {
-            ComparisonTable(
+            ProductResults(
                 title = "Closest alternatives",
                 products = message.alternatives.map { it.actuator },
                 defaultUnit = unit,
-                misses = message.alternatives.map { candidate -> candidate.unmet.map(::unmetText) },
+                requirements = message.requirements,
+                unmetByModel = message.alternatives.map { it.unmet },
             )
         }
         if (message.suggestions.isNotEmpty()) {
@@ -493,6 +514,7 @@ private fun TextComposer(
     onMic: () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
+    val focus = LocalFocusManager.current
     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedTextField(
             value = draft,
@@ -520,6 +542,8 @@ private fun TextComposer(
                 FilledIconButton(
                     onClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        // What comes back is a table to read, and the keyboard would cover most of it.
+                        focus.clearFocus()
                         onSend()
                     },
                     enabled = !sending,

@@ -201,6 +201,95 @@ class ComparisonModelTest {
         assertEquals("", conversationTitle(emptyList(), loading = true))
     }
 
+    private val torqueOnOff =
+        Requirements(enclosure = "weatherproof", service = "on_off", minTorque = TorqueRequirement(500.0, "nm"))
+
+    @Test
+    fun `a requirement reads as met, or as what the model has, from what the backend decided`() {
+        val short = UnmetRequirement("min_torque_nm", JsonPrimitive(500.0), JsonPrimitive(120))
+        val checks = requirementChecks(torqueOnOff, listOf(emptyList(), listOf(short)))
+        assertEquals(
+            listOf(
+                RequirementCheck(
+                    "Service: On/off",
+                    listOf(CheckResult(CheckState.MET, "Meets"), CheckResult(CheckState.MET, "Meets")),
+                ),
+                RequirementCheck(
+                    "Torque ≥ 500 Nm",
+                    listOf(CheckResult(CheckState.MET, "Meets"), CheckResult(CheckState.UNMET, "Has 120")),
+                ),
+            ),
+            checks,
+        )
+    }
+
+    @Test
+    fun `enclosure and supply are never relaxed, so they need no check`() {
+        val checks = requirementChecks(Requirements(enclosure = "weatherproof", powerSupply = "110v"), listOf(emptyList()))
+        assertTrue(checks.isEmpty())
+    }
+
+    @Test
+    fun `a model that came from a lookup was never checked, so it does not read as meeting anything`() {
+        val checks = requirementChecks(torqueOnOff, listOf(null, emptyList()))
+        assertEquals(CheckState.NOT_CHECKED, checks.first().results.first().state)
+        assertEquals(CheckState.MET, checks.first().results.last().state)
+        assertTrue(requirementChecks(torqueOnOff, listOf(null)).isEmpty())
+    }
+
+    @Test
+    fun `a miss with no published value says so, and a miss outside the list still appears`() {
+        val missing = UnmetRequirement("min_starts_per_hour", JsonPrimitive(100), null)
+        val check = requirementChecks(Requirements(), listOf(listOf(missing))).single()
+        assertEquals("Starts per hour", check.label)
+        assertEquals(CheckResult(CheckState.UNMET, "Not published"), check.results.single())
+    }
+
+    @Test
+    fun `a search result does not claim to be every model that fits`() {
+        assertEquals("Smallest that fit", resultsTitle(5, matched = true))
+        assertEquals("2 models", resultsTitle(2, matched = false))
+    }
+
+    @Test
+    fun `a part number in a narrow column breaks at its hyphen`() {
+        assertEquals(2, partNumberOnTwoLines("761A00-11300000/A").lines().size)
+        assertEquals("761A00-", partNumberOnTwoLines("761A00-11300000/A").lines().first())
+    }
+
+    @Test
+    fun `the view follows how many models there are`() {
+        assertEquals(ResultLayout.CARD, resultLayout(1))
+        assertEquals(ResultLayout.PAIR, resultLayout(2))
+        assertEquals(ResultLayout.LIST, resultLayout(3))
+    }
+
+    @Test
+    fun `a list row summarizes torque by service, as published`() {
+        val two = actuator(ratings = listOf(Rating("on_off", 690, 80, 57.5, 40), Rating("modulating", 550, 65, 45.8, 35)))
+        assertEquals("On/off 80 Nm · Modulating 65 Nm", summaryLine(two, TorqueDisplay.NM))
+        assertEquals("On/off 690 in-lb", summaryLine(actuator(), TorqueDisplay.IN_LB))
+        val threePhase = actuator(ratings = listOf(Rating("unspecified", 690, 80, 57.5, 40)))
+        assertEquals("80 Nm, service not stated", summaryLine(threePhase, TorqueDisplay.NM))
+        val listed = actuator(ratings = emptyList(), electricals = emptyList(), notAvailable = true)
+        assertEquals("N/A in the data sheet", summaryLine(listed, TorqueDisplay.NM))
+    }
+
+    @Test
+    fun `sections group every row and drop the empty ones`() {
+        val sections = specSections(listOf(actuator()), TorqueDisplay.NM, onlyDifferences = false)
+        assertEquals(listOf("General", "Torque and duty", "Speed and current", "Operation"), sections.map { it.title })
+        assertEquals(rows(actuator()).size, sections.sumOf { it.rows.size })
+    }
+
+    @Test
+    fun `only differences leaves out the rows and sections all models share`() {
+        val sections =
+            specSections(listOf(actuator(torqueNm = 80), actuator(torqueNm = 120)), TorqueDisplay.NM, onlyDifferences = true)
+        assertEquals(listOf("Torque and duty"), sections.map { it.title })
+        assertEquals(listOf("Torque, on/off (Nm)"), sections.single().rows.map { it.label })
+    }
+
     @Test
     fun `a long wait says so`() {
         assertEquals("Checking the data tables", workingText(9))

@@ -65,7 +65,9 @@ Beyond the fixed `session_id` and `answer`, a turn returns:
 - `message_id`, which opens the debug view of that answer.
 - `outcome`: `answered`, `recommendation`, `no_match`, `invalid_part_number`, `missing_data`, `ambiguous` or `out_of_scope`. The app labels each answer with it.
 - `products` and `alternatives`, the cards the app draws. Each alternative lists the requirements it misses.
+- `matches`, the part numbers in `products` that met the requirements. A card can also come from a lookup, which checked none of them.
 - `suggestions`, real part numbers close to a mistyped one.
+- `follow_ups`, next steps the app offers as buttons, such as "Modulating" or "Drop the torque minimum". Code writes them from the search result, and a tap sends one as an ordinary question.
 - `requirements`, what the conversation has accumulated so far.
 
 A second turn on a conversation that is still answering gets a 409. A conversation that belongs to another user gets a 404. Errors share one shape: `{status, message, data, trace_id}`.
@@ -125,10 +127,12 @@ The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS
 
 The app should look like an engineering tool: white surfaces, cool grays, hairlines in place of shadows, and one blue for what can be pressed. Amber and red only ever mean a problem. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.
 
-- One model opens as a small data sheet, with services and frequencies as columns. Anything else on its row expands from it.
-- Several models open as a table whose row labels stay fixed while the values scroll sideways. It starts with torque and the key rows that differ, so the part numbers stay in view, because Baymard's testing favored keeping column headings visible.
+- How many models came back decides the view. One opens as a small data sheet, with services and frequencies as columns. Two sit side by side with no sideways scroll. Three or more open as a list whose rows expand in place, with a table one tap away, because columns past the second would run off a phone's screen.
+- Requirements come first, as "Meets" or "Has 3000". That text comes from what the backend decided, so the app never judges a figure on its own. A model from a lookup was never checked, and its cell stays blank.
+- The full comparison opens on its own screen, grouped by topic, with the part numbers pinned and "Only differences" in plain view. Nielsen Norman Group recommends pinned headers for tables longer than a screen, and Baymard's testing favored both grouping and hiding what matches.
 - Torque switches between Nm, in-lb and ft-lb by reading the published value, never by converting on the device.
-- An alternative states what it misses, and N/A reads differently from a blank cell.
+- N/A reads differently from a blank cell.
+- The answer stays short, because the app shows the data. Buttons for the likely next step sit right under it, only on the latest answer.
 - Only an answer that needs attention carries a label, such as "No exact match". A normal answer has none.
 - A wait past 10 seconds says that it is still going, and a failed question is resent only on a tap, since repeating a `POST` could ask the model twice.
 

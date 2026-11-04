@@ -29,6 +29,9 @@ data class ChatMessage(
     val products: List<ActuatorData> = emptyList(),
     val alternatives: List<Candidate> = emptyList(),
     val suggestions: List<String> = emptyList(),
+    val matches: List<String> = emptyList(),
+    val followUps: List<String> = emptyList(),
+    val requirements: Requirements? = null,
     val error: String? = null,
 )
 
@@ -201,6 +204,9 @@ class ChatViewModel(
             products = message.products,
             alternatives = message.alternatives,
             suggestions = message.suggestions,
+            matches = message.matches,
+            followUps = message.followUps,
+            requirements = message.requirements,
         )
 
     private fun toChatMessage(response: ConversationResponse) =
@@ -212,6 +218,9 @@ class ChatViewModel(
             products = response.products,
             alternatives = response.alternatives,
             suggestions = response.suggestions,
+            matches = response.matches,
+            followUps = response.followUps,
+            requirements = response.requirements,
         )
 
     private companion object {

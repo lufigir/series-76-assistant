@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The local backend speaks plain HTTP, on 10.0.2.2 or a computer's LAN address, which cannot be listed in advance.
+     This file exists only in debug builds, so a release build keeps cleartext traffic blocked. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

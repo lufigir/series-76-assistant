@@ -34,6 +34,9 @@ CORRECTIONS = ROOT / "data" / "processed" / "corrections.json"
 TRANSCRIPTIONS = ROOT / "data" / "processed" / "transcriptions"
 RENDER_DPI = 220
 REQUEST_TIMEOUT_MS = 180_000  # ChatOpenRouter takes milliseconds, not seconds.
+# These produced the saved transcriptions, so --saved works on a fresh clone with nothing configured.
+DEFAULT_EXTRACTION_MODEL = "anthropic/claude-haiku-5.5"
+DEFAULT_VERIFY_MODEL = "google/gemini-3.1-flash-lite"
 
 
 class Rating(BaseModel):
@@ -268,6 +271,13 @@ def transcribe(models: list[str], only: set[int] | None) -> list[tuple[str, Page
     return [(model, page) for (model, _), page in zip(jobs, pages, strict=True)]
 
 
+def extraction_models() -> list[str]:
+    return [
+        os.environ.get("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL),
+        os.environ.get("EXTRACTION_VERIFY_MODEL", DEFAULT_VERIFY_MODEL),
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -277,7 +287,7 @@ def main() -> int:
     args = parser.parse_args()
 
     load_dotenv(ROOT / ".env")
-    models = [os.environ["EXTRACTION_MODEL"], os.environ["EXTRACTION_VERIFY_MODEL"]]
+    models = extraction_models()
     if args.saved:
         pages = load_saved(models)
     else:

@@ -99,7 +99,7 @@ async def test_conversations_survive_a_restart(
     restarted_model = ScriptedChatModel(
         script=[call("find_actuators", changes={"min_torque": {"value": 500, "unit": "nm"}}), "This one fits."]
     )
-    restarted = create_app(app.state.settings, chat_model=restarted_model)
+    restarted = create_app(app.state.settings, chat_model=restarted_model, transcription_model=restarted_model)
     async with restarted.router.lifespan_context(restarted):
         transport = ASGITransport(app=restarted, raise_app_exceptions=False)
         async with AsyncClient(transport=transport, base_url="http://test") as restarted_client:

@@ -31,6 +31,8 @@ The dependency rule is `router > dependencies > service > repository > models`, 
 - A request holds no database connection during a model call: `ConversationRepository.release_connection` and `acquire` end the transaction first.
 - The model's output is untrusted input. Code owns filtering, relaxation, unit handling and the `products` in a response; `docs/adr/` records why.
 
+The Android app in `android/` follows Google's architecture recommendations with one Gradle module: `ui > data`, repositories as the ViewModels' only door to data, a `XRoute` that holds the ViewModel over a stateless `XScreen`, and dependencies wired by hand in `di/AppContainer.kt`. Decisions on screen, such as rows, labels and groupings, are pure functions with JVM tests, like `ui/chat/ComparisonModel.kt`. Colors, type and shapes come from `ui/theme/Theme.kt`.
+
 A new feature follows `src/auth/`: `models`, `schemas`, `repository`, `service`, `dependencies`, `router`, then its contract in `pyproject.toml` and its tests. A schema change goes through `alembic revision --autogenerate --rev-id NNNN`, read and tidied before it is committed.
 
 ## Skills
@@ -49,6 +51,7 @@ This file and `docs/adr/` outrank the LangChain skills, which show general examp
 
 Traps that the tests pin down:
 
+- A part number written in the transcription prompt comes back as the transcript of silence, so the prompt describes the format instead.
 - `761A`, `761B`, `762A` and `762B` at 220 V three phase exist as N/A: that is missing data, distinct from an unknown part number.
 - The three-phase table does not separate on/off from modulating, so its rating never counts as meeting a requested service.
 - Sizes 6 and 7 are not CSA certified, despite the table heading.
@@ -75,6 +78,8 @@ Python commands run from `backend/` with `uv run`. On Windows, prefix them with 
 
 `uv run python -m tests.evals.run` runs the golden set in `tests/evals/` against the configured model, on a throwaway PostgreSQL. It spends that provider's budget, so it stays out of CI. Run it after any change to a prompt, a tool description or the model, and keep `--delay` at 8 or more on Google's free tier.
 
+The app builds with `./gradlew` from `android/`, with `JAVA_HOME` on Android Studio's `jbr`. `testDebugUnitTest` and `lintDebug` run in CI. On a fresh emulator, Gboard's stylus tutorial swallows text typed through adb until `adb shell settings put secure stylus_handwriting_enabled 0`.
+
 Keys live only in the ignored `.env`. During development, use Google AI Studio's free tier or free OpenRouter models; the assessment's OpenRouter key has a hard budget and is reserved for the final check.
 
 ## Personal data
@@ -100,4 +105,4 @@ Only test users and catalog questions go to these services. Deleting a user casc
 
 ## Versions
 
-`backend/uv.lock` pins everything and `exclude-newer = "7 days"` keeps out releases younger than a week. Main versions: Python 3.13, FastAPI 0.162, SQLAlchemy 2.1, Alembic 1.20, psycopg 3.3, PostgreSQL 18, LangChain 1.4, LangGraph 1.2. Look up the documentation for these versions before relying on an API.
+`backend/uv.lock` pins everything and `exclude-newer = "7 days"` keeps out releases younger than a week. Main versions: Python 3.13, FastAPI 0.162, SQLAlchemy 2.1, Alembic 1.20, psycopg 3.3, PostgreSQL 18, LangChain 1.4, LangGraph 1.2. `android/gradle/libs.versions.toml` pins the app: Kotlin 2.4, AGP 9.5, Compose BOM 2026.09, Navigation 3 1.2, Retrofit 3, OkHttp 5. Compose and OkHttp require `compileSdk` 37. Look up the documentation for these versions before relying on an API.

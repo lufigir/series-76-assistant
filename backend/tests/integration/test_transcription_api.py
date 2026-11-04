@@ -1,6 +1,7 @@
 """The transcription endpoint as a client sees it, with a scripted model in place of the provider."""
 
 import asyncio
+import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -11,10 +12,15 @@ from langchain_core.messages import BaseMessage
 
 from seed import TEST_USERS
 from src.transcriptions.dependencies import MAX_AUDIO_BYTES
+from src.transcriptions.service import TRANSCRIPTION_PROMPT
 from tests.fakes import Gate, ScriptedChatModel
 
 WAV = (Path(__file__).parents[1] / "fixtures" / "audio" / "en-part.wav").read_bytes()
 EMAIL, PASSWORD = next(iter(TEST_USERS.items()))
+
+
+def compact_part_numbers(text: str) -> list[str]:
+    return re.findall(r"76[1-7][A-Z]\d{2}", text)
 
 
 @pytest.fixture
@@ -67,10 +73,11 @@ async def test_the_limit_holds_without_a_content_length(client: AsyncClient, hea
     assert response.status_code == 413
 
 
+@pytest.mark.parametrize("reply", ["  ", "NO_SPEECH", " NO_SPEECH\n"])
 async def test_silence_is_an_error_the_user_can_act_on(
-    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel, reply: str
 ) -> None:
-    transcription_model.script = ["  "]
+    transcription_model.script = [reply]
     assert (await client.post("/api/transcriptions", content=WAV, headers=headers)).status_code == 422
 
 
@@ -93,3 +100,7 @@ async def test_no_connection_is_held_during_the_model_call(
     assert app.state.engine.pool.checkedout() == 0
     gate.release.set()
     assert (await request).status_code == 200
+
+
+def test_the_prompt_holds_no_part_number_the_model_could_repeat_from_silence() -> None:
+    assert not compact_part_numbers(TRANSCRIPTION_PROMPT)

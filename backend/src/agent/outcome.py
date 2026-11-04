@@ -5,7 +5,7 @@ from src.agent.schemas import Outcome
 
 
 def decide_outcome(
-    lookups: list[LookupResult], searches: list[SearchResult], answered_from_notes: bool, answer: str
+    lookups: list[LookupResult], searches: list[SearchResult], answered_from_notes: bool, marked_out_of_scope: bool
 ) -> Outcome:
     """A problem with what the user named outranks anything else found in the same turn, so it is never hidden."""
     statuses = {lookup.status for lookup in lookups}
@@ -22,8 +22,7 @@ def decide_outcome(
         return Outcome.NO_MATCH if latest.alternatives or latest.available_power_supplies else Outcome.AMBIGUOUS
     if "found" in statuses or answered_from_notes:
         return Outcome.ANSWERED
-    # With no tool evidence, the one thing left to tell apart is a question back from a refusal.
-    return Outcome.AMBIGUOUS if "?" in answer else Outcome.OUT_OF_SCOPE
+    return Outcome.OUT_OF_SCOPE if marked_out_of_scope else Outcome.AMBIGUOUS
 
 
 def assemble_products(

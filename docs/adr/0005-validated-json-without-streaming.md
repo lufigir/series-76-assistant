@@ -10,7 +10,7 @@ Streaming makes a chat feel faster, but a streamed number has already reached th
 
 `POST /api/conversation` answers with one complete JSON document. Before it leaves the server, a validator checks that every number in the text appears in the data the tools returned during that turn. On a failure the model gets one retry with the reason, and after a second failure the answer comes from a template built only from tool data. The check runs inside `wrap_model_call`, before the message reaches the graph, so a rejected number never enters the agent's memory.
 
-The `products` array and the `outcome` are decided by code from tool results. The model writes neither. The one heuristic is a turn with no tool calls: an answer with a question mark is `ambiguous`, and any other is `out_of_scope`.
+The `products` array and the `outcome` are decided by code from tool results. The model writes neither. A turn with no data tells two cases apart: `mark_out_of_scope` makes it `out_of_scope`, and anything else is `ambiguous`. That tool replaced a check for a question mark in the answer, which labelled "Please provide the part number." as out of scope. It costs one more model call on a refusal, and a refusal without the tool reads as `ambiguous`, the milder label.
 
 LangChain's `response_format` is not used, because of issue 40423 (open): an invalid structured output next to another tool call ends the loop with no retry.
 

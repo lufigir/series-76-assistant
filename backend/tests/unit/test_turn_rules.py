@@ -42,23 +42,24 @@ def test_outcome_table(actuator: ActuatorData) -> None:
     alternative = SearchResult(alternatives=[Candidate(actuator=actuator, unmet=[unmet])], unspecified=[])
 
     cases = [
-        ([found], [], False, "It has 80 Nm.", Outcome.ANSWERED),
-        ([], [], True, "The tolerance is 10%.", Outcome.ANSWERED),
-        ([_lookup("not_found")], [], False, "Not in the tables.", Outcome.INVALID_PART_NUMBER),
-        ([_lookup("invalid_format")], [], False, "Not in the tables.", Outcome.INVALID_PART_NUMBER),
-        ([found, _lookup("not_found")], [], False, "One is unknown.", Outcome.INVALID_PART_NUMBER),
-        ([_lookup("not_available", actuator)], [], False, "N/A.", Outcome.MISSING_DATA),
-        ([_lookup("ambiguous")], [], False, "Which one?", Outcome.AMBIGUOUS),
-        ([], [match], False, "Use this.", Outcome.RECOMMENDATION),
-        ([found], [match], False, "Use this.", Outcome.RECOMMENDATION),
-        ([], [alternative], False, "None.", Outcome.NO_MATCH),
-        ([], [SearchResult(unspecified=[], available_power_supplies=["24v_dc"])], False, "None.", Outcome.NO_MATCH),
-        ([], [SearchResult(unspecified=["service"])], False, "What service?", Outcome.AMBIGUOUS),
-        ([], [], False, "Which actuator do you mean?", Outcome.AMBIGUOUS),
-        ([], [], False, "I only cover Series 76.", Outcome.OUT_OF_SCOPE),
+        ([found], [], False, False, Outcome.ANSWERED),
+        ([], [], True, False, Outcome.ANSWERED),
+        ([_lookup("not_found")], [], False, False, Outcome.INVALID_PART_NUMBER),
+        ([_lookup("invalid_format")], [], False, False, Outcome.INVALID_PART_NUMBER),
+        ([found, _lookup("not_found")], [], False, False, Outcome.INVALID_PART_NUMBER),
+        ([_lookup("not_available", actuator)], [], False, False, Outcome.MISSING_DATA),
+        ([_lookup("ambiguous")], [], False, False, Outcome.AMBIGUOUS),
+        ([], [match], False, False, Outcome.RECOMMENDATION),
+        ([found], [match], False, False, Outcome.RECOMMENDATION),
+        ([], [alternative], False, False, Outcome.NO_MATCH),
+        ([], [SearchResult(unspecified=[], available_power_supplies=["24v_dc"])], False, False, Outcome.NO_MATCH),
+        ([], [SearchResult(unspecified=["service"])], False, False, Outcome.AMBIGUOUS),
+        ([], [], False, False, Outcome.AMBIGUOUS),
+        ([], [], False, True, Outcome.OUT_OF_SCOPE),
+        ([found], [], False, True, Outcome.ANSWERED),
     ]
-    for lookups, searches, notes, answer, expected in cases:
-        assert decide_outcome(lookups, searches, notes, answer) == expected
+    for lookups, searches, notes, out_of_scope, expected in cases:
+        assert decide_outcome(lookups, searches, notes, out_of_scope) == expected
 
 
 def test_cards_appear_once_and_only_from_tool_results(actuator: ActuatorData, uncertified: ActuatorData) -> None:

@@ -3,6 +3,7 @@
 from tests.evals.scoring import Case, Turn
 
 LOOKUP = "get_actuator"
+OUT_OF_SCOPE = "mark_out_of_scope"
 SEARCH = "find_actuators"
 NOTES = "get_data_sheet_notes"
 
@@ -401,12 +402,12 @@ CASES = (
     Case(
         "general-knowledge",
         "out_of_scope",
-        (Turn("What is the capital of France?", outcome="out_of_scope", no_tools=True, forbidden=("Paris",)),),
+        (Turn("What is the capital of France?", outcome="out_of_scope", tools=(OUT_OF_SCOPE,), forbidden=("Paris",)),),
     ),
     Case(
         "spanish-unrelated",
         "out_of_scope",
-        (Turn("Dame una receta de arepas", outcome="out_of_scope", no_tools=True),),
+        (Turn("Dame una receta de arepas", outcome="out_of_scope", tools=(OUT_OF_SCOPE,)),),
     ),
     Case(
         "voltage-tolerance",

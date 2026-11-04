@@ -17,7 +17,7 @@ from src.agent.outcome import assemble_products, decide_outcome
 from src.agent.prompts import PROMPT_VERSION, SYSTEM_PROMPT
 from src.agent.schemas import TurnResult, TurnTrace
 from src.agent.state import AssistantState, TurnContext, TurnRecord
-from src.agent.tools import TOOLS, get_data_sheet_notes
+from src.agent.tools import TOOLS, get_data_sheet_notes, mark_out_of_scope
 
 # A lookup and an answer take 2 model calls. These stop a loop, and with max output tokens they bound a turn's cost.
 MAX_MODEL_CALLS = 6
@@ -66,10 +66,15 @@ class Assistant:
             record.answer = fallback_answer(query, record.lookups, record.searches)
 
         products, alternatives, suggestions = assemble_products(record.lookups, record.searches)
-        answered_from_notes = any(tool.name == get_data_sheet_notes.name for tool in record.tools)
+        called = {tool.name for tool in record.tools}
         return TurnResult(
             answer=record.answer,
-            outcome=decide_outcome(record.lookups, record.searches, answered_from_notes, record.answer),
+            outcome=decide_outcome(
+                record.lookups,
+                record.searches,
+                answered_from_notes=get_data_sheet_notes.name in called,
+                marked_out_of_scope=mark_out_of_scope.name in called,
+            ),
             products=products,
             alternatives=alternatives,
             suggestions=suggestions,

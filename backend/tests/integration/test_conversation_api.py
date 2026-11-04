@@ -358,6 +358,16 @@ async def test_a_turn_past_its_deadline_answers_504_and_frees_the_conversation(
     assert (await ask(client, headers, "Again", session_id)).status_code == 200
 
 
+async def test_the_outcome_of_a_turn_without_data_follows_the_declaration_and_not_the_wording(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = ["Please provide the part number."]
+    assert (await ask(client, headers, "What is its torque?")).json()["outcome"] == "ambiguous"
+
+    chat_model.script = [call("mark_out_of_scope"), "I only cover Series 76 actuators. Anything else?"]
+    assert (await ask(client, headers, "Capital of France?")).json()["outcome"] == "out_of_scope"
+
+
 async def test_sessions_list_only_your_own_most_recent_first(
     client: AsyncClient,
     headers: dict[str, str],

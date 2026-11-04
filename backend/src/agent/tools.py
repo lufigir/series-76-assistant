@@ -63,5 +63,11 @@ async def get_data_sheet_notes() -> str:
     return json.dumps(DATA_SHEET_NOTES)
 
 
-TOOLS = [get_actuator, find_actuators, get_data_sheet_notes]
+@tool
+async def mark_out_of_scope() -> str:
+    """Declare that the request has nothing to do with Series 76 actuators, before saying so to the user."""
+    return "Recorded."
+
+
+TOOLS = [get_actuator, find_actuators, get_data_sheet_notes, mark_out_of_scope]
 TOOL_NAMES = [assistant_tool.name for assistant_tool in TOOLS]

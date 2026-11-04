@@ -343,19 +343,19 @@ async def slow_app(app: FastAPI, chat_model: ScriptedChatModel) -> AsyncIterator
 
 
 async def test_a_turn_past_its_deadline_answers_504_and_frees_the_conversation(
-    slow_app: FastAPI, chat_model: ScriptedChatModel
+    client: AsyncClient, headers: dict[str, str], slow_app: FastAPI, chat_model: ScriptedChatModel
 ) -> None:
+    # Only the blocked turn runs under the one-second deadline, because a healthy turn can outlast it on a busy machine.
+    chat_model.script = ["Hello."]
+    session_id = (await ask(client, headers, "Hi")).json()["session_id"]
+
     transport = ASGITransport(app=slow_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as slow_client:
-        headers = await _headers(slow_client)
-        chat_model.script = ["Hello."]
-        session_id = (await ask(slow_client, headers, "Hi")).json()["session_id"]
-
         chat_model.script = [Gate(), "Too late."]
         assert (await ask(slow_client, headers, "Slow", session_id)).status_code == 504
 
-        chat_model.script = ["Fine."]
-        assert (await ask(slow_client, headers, "Again", session_id)).status_code == 200
+    chat_model.script = ["Fine."]
+    assert (await ask(client, headers, "Again", session_id)).status_code == 200
 
 
 async def test_sessions_list_only_your_own_most_recent_first(

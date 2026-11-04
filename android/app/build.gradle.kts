@@ -20,6 +20,28 @@ android {
         buildConfigField("String", "BACKEND_URL", "\"$backendUrl\"")
     }
 
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // A debug build is far slower than what a user would get, so evaluators install this one. It optimizes like
+        // release, signs with the debug key so it needs no keystore, and can reach a local backend over plain HTTP.
+        create("local") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
+    }
+
+    sourceSets {
+        getByName("local") {
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+            res.directories.add("src/debug/res")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -50,6 +72,8 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.datastore.tink)
     implementation(libs.tink.android)
+    // Installs the profile Compose ships with, so that its hot paths are compiled ahead of the first frames.
+    implementation(libs.profileinstaller)
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

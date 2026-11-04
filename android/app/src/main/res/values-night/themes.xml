@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window draws before Compose does, so a light theme here would flash white on a dark phone. -->
+    <style name="Theme.Series76" parent="android:Theme.Material.NoActionBar" />
+</resources>

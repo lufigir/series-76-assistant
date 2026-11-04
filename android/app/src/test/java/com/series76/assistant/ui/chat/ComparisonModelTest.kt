@@ -112,17 +112,39 @@ class ComparisonModelTest {
     }
 
     @Test
-    fun `key figures read the on-off rating and the first frequency, as published`() {
+    fun `key figures read as published, with the service and frequency of each`() {
         val figures = keyFigures(actuator(), TorqueDisplay.IN_LB)
         assertEquals(
             listOf(
                 KeyFigure("Torque, on/off", "690", "in-lb"),
-                KeyFigure("Duty", "40", "%"),
+                KeyFigure("Duty, on/off", "40", "%"),
                 KeyFigure("Speed at 60 Hz", "20", "s"),
                 KeyFigure("FLA at 60 Hz", "1.2", "A"),
             ),
             figures,
         )
+    }
+
+    @Test
+    fun `key figures hold every service and frequency, so a follow-up on any of them finds its number`() {
+        val figures =
+            keyFigures(
+                actuator(
+                    ratings = listOf(Rating("on_off", 690, 80, 57.5, 40), Rating("modulating", 550, 65, 45.8, 40)),
+                    electricals = listOf(Electrical("60hz", 20, 1.2, 1.4), Electrical("50hz", 23, 1.1, 1.3)),
+                ),
+                TorqueDisplay.NM,
+            ).associate { it.label to it.value }
+        assertEquals("65", figures["Torque, modulating"])
+        assertEquals("23", figures["Speed at 50 Hz"])
+        assertEquals("1.1", figures["FLA at 50 Hz"])
+    }
+
+    @Test
+    fun `a collapsed comparison keeps the 50 Hz rows`() {
+        assertTrue(isKeyRow("Speed at 50 Hz (s)"))
+        assertTrue(isKeyRow("FLA at 50 Hz (A)"))
+        assertFalse(isKeyRow("LRA at 50 Hz (A)"))
     }
 
     @Test

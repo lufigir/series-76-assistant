@@ -179,30 +179,40 @@ fun enclosureLabel(raw: String): String = label(raw)
 
 fun powerSupplyLabel(raw: String): String = label(raw)
 
-/** The figures an engineer decides on, read straight from the row: nothing here is computed or rounded. */
+/**
+ * The figures an engineer decides on, read straight from the row: nothing here is computed or rounded. Every
+ * service and frequency appears, because the card cannot tell which one a follow-up question was about.
+ */
 fun keyFigures(product: ActuatorData, unit: TorqueDisplay): List<KeyFigure> {
-    val rating = product.ratings.firstOrNull { it.service == "on_off" } ?: product.ratings.firstOrNull()
-    val serviceName =
-        when (rating?.service) {
-            "on_off" -> "on/off"
-            "modulating" -> "modulating"
-            else -> "service not stated"
+    val ratings =
+        product.ratings.flatMap { rating ->
+            val service =
+                when (rating.service) {
+                    "on_off" -> "on/off"
+                    "modulating" -> "modulating"
+                    else -> "service not stated"
+                }
+            listOf(
+                KeyFigure("Torque, $service", torque(rating, unit), unit.label),
+                KeyFigure("Duty, $service", rating.dutyPct.toString(), "%"),
+            )
         }
-    val electrical = product.electricals.firstOrNull()
-    val frequency =
-        when (electrical?.frequency) {
-            "60hz" -> " at 60 Hz"
-            "50hz" -> " at 50 Hz"
-            else -> ""
+    val electricals =
+        product.electricals.flatMap { electrical ->
+            val frequency =
+                when (electrical.frequency) {
+                    "60hz" -> " at 60 Hz"
+                    "50hz" -> " at 50 Hz"
+                    else -> ""
+                }
+            listOf(
+                KeyFigure("Speed$frequency", electrical.speedSec.toString(), "s"),
+                KeyFigure("FLA$frequency", electrical.fla.toString(), "A"),
+            )
         }
-    return listOfNotNull(
-        rating?.let { KeyFigure("Torque, $serviceName", torque(it, unit), unit.label) },
-        rating?.let { KeyFigure("Duty", it.dutyPct.toString(), "%") },
-        electrical?.let { KeyFigure("Speed$frequency", it.speedSec.toString(), "s") },
-        electrical?.let { KeyFigure("FLA$frequency", it.fla.toString(), "A") },
-    )
+    return ratings + electricals
 }
 
 /** The rows a collapsed comparison shows: what usually decides between two models. */
 fun isKeyRow(label: String): Boolean =
-    listOf("Torque,", "Duty,", "Speed", "FLA", "CSA").any { label.startsWith(it) } && "50 Hz" !in label
+    listOf("Torque,", "Duty,", "Speed", "FLA", "CSA").any { label.startsWith(it) }

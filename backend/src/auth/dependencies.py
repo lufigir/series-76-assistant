@@ -36,3 +36,11 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+async def get_user_without_connection(
+    user: CurrentUserDep, session: Annotated[AsyncSession, Depends(get_session)]
+) -> CurrentUser:
+    """For a route with no further use for the database: an upload and a model call must not hold a connection."""
+    await session.rollback()
+    return user

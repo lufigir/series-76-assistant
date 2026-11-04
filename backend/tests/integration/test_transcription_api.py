@@ -1,0 +1,95 @@
+"""The transcription endpoint as a client sees it, with a scripted model in place of the provider."""
+
+import asyncio
+from collections.abc import AsyncIterator
+from pathlib import Path
+
+import pytest
+from fastapi import FastAPI
+from httpx import AsyncClient
+from langchain_core.messages import BaseMessage
+
+from seed import TEST_USERS
+from src.transcriptions.dependencies import MAX_AUDIO_BYTES
+from tests.fakes import Gate, ScriptedChatModel
+
+WAV = (Path(__file__).parents[1] / "fixtures" / "audio" / "en-part.wav").read_bytes()
+EMAIL, PASSWORD = next(iter(TEST_USERS.items()))
+
+
+@pytest.fixture
+async def headers(client: AsyncClient) -> dict[str, str]:
+    response = await client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    return {"Authorization": f"Bearer {response.json()['token']}"}
+
+
+def audio_block(message: BaseMessage) -> dict[str, str]:
+    return next(block for block in message.content if isinstance(block, dict) and block["type"] == "audio")
+
+
+async def test_a_recording_comes_back_as_text(
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    transcription_model.script = ["  What is the torque of 761A00-11300000/A?\n"]
+    response = await client.post("/api/transcriptions", content=WAV, headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"text": "What is the torque of 761A00-11300000/A?"}
+    assert audio_block(transcription_model.calls[-1][0])["mime_type"] == "audio/wav"
+
+
+async def test_the_declared_type_is_not_believed(
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    calls = len(transcription_model.calls)
+    response = await client.post(
+        "/api/transcriptions", content=b"%PDF-1.7 not audio", headers={**headers, "Content-Type": "audio/wav"}
+    )
+    assert response.status_code == 415
+    assert set(response.json()) == {"status", "message", "data", "trace_id"}
+    assert len(transcription_model.calls) == calls
+
+
+async def test_an_anonymous_caller_is_refused(client: AsyncClient) -> None:
+    assert (await client.post("/api/transcriptions", content=WAV)).status_code == 401
+
+
+async def test_a_recording_over_the_limit_is_refused(client: AsyncClient, headers: dict[str, str]) -> None:
+    response = await client.post("/api/transcriptions", content=WAV + b"\0" * MAX_AUDIO_BYTES, headers=headers)
+    assert response.status_code == 413
+
+
+async def test_the_limit_holds_without_a_content_length(client: AsyncClient, headers: dict[str, str]) -> None:
+    async def chunks() -> AsyncIterator[bytes]:
+        yield WAV
+        yield b"\0" * MAX_AUDIO_BYTES
+
+    response = await client.post("/api/transcriptions", content=chunks(), headers=headers)
+    assert response.status_code == 413
+
+
+async def test_silence_is_an_error_the_user_can_act_on(
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    transcription_model.script = ["  "]
+    assert (await client.post("/api/transcriptions", content=WAV, headers=headers)).status_code == 422
+
+
+async def test_a_provider_failure_says_voice_is_unavailable(
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    transcription_model.script = [RuntimeError("402 from the provider")]
+    response = await client.post("/api/transcriptions", content=WAV, headers=headers)
+    assert response.status_code == 503
+    assert "402" not in response.json()["message"]
+
+
+async def test_no_connection_is_held_during_the_model_call(
+    app: FastAPI, client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    gate = Gate()
+    transcription_model.script = [gate, "Text."]
+    request = asyncio.create_task(client.post("/api/transcriptions", content=WAV, headers=headers))
+    await gate.entered.wait()
+    assert app.state.engine.pool.checkedout() == 0
+    gate.release.set()
+    assert (await request).status_code == 200

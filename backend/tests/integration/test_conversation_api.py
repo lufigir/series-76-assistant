@@ -337,7 +337,7 @@ async def test_a_failed_first_turn_leaves_no_conversation(
 @pytest.fixture
 async def slow_app(app: FastAPI, chat_model: ScriptedChatModel) -> AsyncIterator[FastAPI]:
     settings = app.state.settings.model_copy(update={"turn_timeout_seconds": 1})
-    application = create_app(settings, chat_model=chat_model)
+    application = create_app(settings, chat_model=chat_model, transcription_model=chat_model)
     async with application.router.lifespan_context(application):
         yield application
 

@@ -83,7 +83,7 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "Application layers point downwards"
 type = "layers"
-layers = ["src.main", "src.conversations", "src.auth | src.agent", "src.actuators", "src.core"]
+layers = ["src.main", "src.conversations | src.transcriptions", "src.auth | src.agent", "src.actuators", "src.core"]
 
 [[tool.importlinter.contracts]]
 name = "Inside auth: router > dependencies > service > repository"
@@ -121,6 +121,16 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "Inside transcriptions: router > dependencies > service, and sniffing stays pure"
+type = "layers"
+layers = [
+    "src.transcriptions.router",
+    "src.transcriptions.dependencies",
+    "src.transcriptions.service",
+    "src.transcriptions.audio | src.transcriptions.schemas",
+]
+
+[[tool.importlinter.contracts]]
 name = "Inside agent: assistant > middleware > tools, and the rules stay pure"
 type = "layers"
 layers = [
@@ -154,6 +164,7 @@ source_modules = [
     "src.conversations.schemas",
     "src.conversations.service",
     "src.main",
+    "src.transcriptions",
 ]
 forbidden_modules = ["sqlalchemy"]
 allow_indirect_imports = true

@@ -11,11 +11,19 @@ MAX_TRANSPORT_RETRIES = 2
 
 
 def create_chat_model(settings: Settings) -> BaseChatModel:
+    return _create_model(settings, settings.llm_model)
+
+
+def create_transcription_model(settings: Settings) -> BaseChatModel:
+    return _create_model(settings, settings.transcription_model)
+
+
+def _create_model(settings: Settings, model_name: str) -> BaseChatModel:
     if settings.llm_provider == "openrouter":
         if settings.openrouter_api_key is None:
             raise ValueError("LLM_PROVIDER=openrouter needs OPENROUTER_API_KEY")
         return ChatOpenRouter(
-            model_name=settings.llm_model,
+            model_name=model_name,
             api_key=settings.openrouter_api_key,
             temperature=0,
             max_tokens=settings.llm_max_output_tokens,
@@ -28,7 +36,7 @@ def create_chat_model(settings: Settings) -> BaseChatModel:
     if settings.google_api_key is None:
         raise ValueError("LLM_PROVIDER=google needs GOOGLE_API_KEY")
     return ChatGoogleGenerativeAI(
-        model=settings.llm_model,
+        model=model_name,
         google_api_key=settings.google_api_key,
         temperature=0,
         max_output_tokens=settings.llm_max_output_tokens,

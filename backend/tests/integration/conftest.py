@@ -52,8 +52,19 @@ def chat_model() -> ScriptedChatModel:
 
 
 @pytest.fixture(scope="session")
-async def app(database_url: str, chat_model: ScriptedChatModel) -> AsyncIterator[FastAPI]:
-    application = create_app(Settings(database_url=database_url, jwt_secret=JWT_SECRET), chat_model=chat_model)
+def transcription_model() -> ScriptedChatModel:
+    return ScriptedChatModel()
+
+
+@pytest.fixture(scope="session")
+async def app(
+    database_url: str, chat_model: ScriptedChatModel, transcription_model: ScriptedChatModel
+) -> AsyncIterator[FastAPI]:
+    application = create_app(
+        Settings(database_url=database_url, jwt_secret=JWT_SECRET),
+        chat_model=chat_model,
+        transcription_model=transcription_model,
+    )
     async with application.router.lifespan_context(application):
         yield application
 

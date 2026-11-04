@@ -138,6 +138,7 @@ layers = [
     "src.agent.middleware",
     "src.agent.tools | src.agent.prompts",
     "src.agent.state",
+    "src.agent.follow_ups",
     "src.agent.fallback | src.agent.outcome",
     "src.agent.number_validator | src.agent.schemas",
 ]

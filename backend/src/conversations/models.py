@@ -40,5 +40,8 @@ class Message(TimestampMixin, Base):
     products: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default="[]")
     alternatives: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default="[]")
     suggestions: Mapped[list[str]] = mapped_column(JSONB, server_default="[]")
+    # The part numbers that met the requirements. A card can also come from a lookup, which checked none of them.
+    matches: Mapped[list[str]] = mapped_column(JSONB, server_default="[]")
+    follow_ups: Mapped[list[str]] = mapped_column(JSONB, server_default="[]")
     requirements: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     trace: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

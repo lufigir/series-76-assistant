@@ -358,6 +358,35 @@ async def test_a_turn_past_its_deadline_answers_504_and_frees_the_conversation(
     assert (await ask(client, headers, "Again", session_id)).status_code == 200
 
 
+async def test_a_recommendation_names_its_matches_and_asks_for_the_next_criterion(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = [
+        call("find_actuators", changes={"enclosure": "weatherproof", "power_supply": "110v"}),
+        "Several models fit.",
+    ]
+
+    body = (await ask(client, headers, "Weatherproof at 110 V")).json()
+
+    assert body["matches"] == [product["part_number"] for product in body["products"]]
+    assert body["follow_ups"] == ["On/off", "Modulating"]
+    history = await client.get(f"/api/sessions/{body['session_id']}/messages", headers=headers)
+    assert history.json()[-1]["follow_ups"] == ["On/off", "Modulating"]
+    assert history.json()[-1]["matches"] == body["matches"]
+
+
+async def test_a_lookup_is_a_card_but_not_a_match(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = [call("get_actuator", part_number=PART), RIGHT]
+
+    body = (await ask(client, headers, f"Torque of {PART}?")).json()
+
+    assert [product["part_number"] for product in body["products"]] == [PART]
+    assert body["matches"] == []
+    assert body["follow_ups"] == []
+
+
 async def test_an_answer_about_a_named_part_number_needs_its_lookup(
     client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
 ) -> None:

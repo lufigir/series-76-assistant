@@ -73,6 +73,8 @@ class ConversationService:
             products=result.products,
             alternatives=result.alternatives,
             suggestions=result.suggestions,
+            matches=result.matches,
+            follow_ups=result.follow_ups,
             requirements=result.requirements,
         )
 

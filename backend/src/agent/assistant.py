@@ -12,6 +12,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from src.actuators.provider import CatalogProvider
 from src.actuators.schemas import Requirements
 from src.agent.fallback import fallback_answer
+from src.agent.follow_ups import follow_ups
 from src.agent.middleware import GuardedTurnMiddleware
 from src.agent.outcome import assemble_products, decide_outcome
 from src.agent.prompts import PROMPT_VERSION, SYSTEM_PROMPT
@@ -78,6 +79,8 @@ class Assistant:
             products=products,
             alternatives=alternatives,
             suggestions=suggestions,
+            matches=[match.actuator.part_number for search in record.searches[-1:] for match in search.matches],
+            follow_ups=follow_ups(query, record.searches),
             requirements=Requirements.model_validate(cast(dict[str, Any], state).get("requirements") or {}),
             trace=self._trace(record, latency_ms),
         )

@@ -8,7 +8,7 @@ Status: accepted, November 2026
 
 ## Decision
 
-`outcome` becomes `no_match`, the answer says nothing qualifies, and the closest models appear with each unmet requirement next to its published value.
+`outcome` becomes `no_match`, the answer says nothing qualifies and names the closest model, and the closest models appear with each unmet requirement next to its published value. The app only displays that list of misses and never judges a figure itself, so it cannot disagree with the backend. `follow_ups` offers to drop what the closest model misses, and code writes those buttons.
 
 - Enclosure, power supply and service are never relaxed. If a combination does not exist, the result lists what that enclosure does offer, as information and not as a recommendation.
 - Lower torque, a longer cycle or a missing certification can appear as an alternative, always labelled with what it misses.

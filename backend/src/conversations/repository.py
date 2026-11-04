@@ -71,6 +71,8 @@ class ConversationRepository:
             products=[product.model_dump(mode="json") for product in result.products],
             alternatives=[alternative.model_dump(mode="json") for alternative in result.alternatives],
             suggestions=result.suggestions,
+            matches=result.matches,
+            follow_ups=result.follow_ups,
             requirements=result.requirements.model_dump(mode="json"),
             trace=result.trace.model_dump(mode="json"),
         )

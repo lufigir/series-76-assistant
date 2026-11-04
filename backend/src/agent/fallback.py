@@ -77,8 +77,12 @@ def _search_lines(search: SearchResult, text: dict[str, str]) -> list[str]:
     return [text["none"]] if search.available_power_supplies else [text["ask"]]
 
 
+def is_spanish(query: str) -> bool:
+    return _SPANISH.search(query) is not None
+
+
 def fallback_answer(query: str, lookups: list[LookupResult], searches: list[SearchResult]) -> str:
-    text = _TEXT["es" if _SPANISH.search(query) else "en"]
+    text = _TEXT["es" if is_spanish(query) else "en"]
     lines = [line for lookup in lookups for line in _lookup_lines(lookup, text)]
     lines += [line for search in searches[-1:] for line in _search_lines(search, text)]
     return "\n".join(lines) or text["generic"]

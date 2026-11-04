@@ -26,6 +26,8 @@ class ConversationResponse(BaseModel):
     products: list[ActuatorData]
     alternatives: list[Candidate]
     suggestions: list[str]
+    matches: list[str]
+    follow_ups: list[str]
     requirements: Requirements
 
 
@@ -47,6 +49,8 @@ class MessageView(BaseModel):
     products: list[ActuatorData]
     alternatives: list[Candidate]
     suggestions: list[str]
+    matches: list[str]
+    follow_ups: list[str]
     requirements: Requirements | None
     created_at: datetime
 

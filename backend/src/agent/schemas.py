@@ -58,5 +58,7 @@ class TurnResult(BaseModel):
     products: list[ActuatorData]
     alternatives: list[Candidate]
     suggestions: list[str]
+    matches: list[str]
+    follow_ups: list[str]
     requirements: Requirements
     trace: TurnTrace

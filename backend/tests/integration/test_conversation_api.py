@@ -171,7 +171,7 @@ async def test_an_answer_naming_a_tool_is_rejected(
         ("761A00-11380000/A", "invalid_part_number", 0, True),
         ("761A00-11330C00/A", "missing_data", 1, False),
         ("761A", "ambiguous", 0, True),
-        ("not a part", "invalid_part_number", 0, False),
+        ("ABC-123", "invalid_part_number", 0, False),
     ],
 )
 async def test_edge_cases_of_a_lookup_have_their_own_outcome(
@@ -356,6 +356,24 @@ async def test_a_turn_past_its_deadline_answers_504_and_frees_the_conversation(
 
     chat_model.script = ["Fine."]
     assert (await ask(client, headers, "Again", session_id)).status_code == 200
+
+
+async def test_an_answer_about_a_named_part_number_needs_its_lookup(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = ["It is weatherproof.", call("get_actuator", part_number=PART), RIGHT]
+
+    body = (await ask(client, headers, f"What enclosure does {PART} have?")).json()
+
+    assert body["answer"] == RIGHT
+    assert [product["part_number"] for product in body["products"]] == [PART]
+
+
+async def test_a_pronoun_passed_as_a_part_number_asks_back(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = [call("get_actuator", part_number="it"), "Which part number do you mean?"]
+    assert (await ask(client, headers, "What is its torque?")).json()["outcome"] == "ambiguous"
 
 
 async def test_the_outcome_of_a_turn_without_data_follows_the_declaration_and_not_the_wording(

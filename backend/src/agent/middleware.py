@@ -10,6 +10,7 @@ from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResp
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.types import Command
 
+from src.actuators.part_numbers import covers, named_in
 from src.actuators.schemas import Requirements
 from src.agent.fallback import fallback_answer
 from src.agent.number_validator import find_violations, known_values
@@ -58,6 +59,13 @@ def keep_one_search(message: AIMessage) -> None:
     message.tool_calls = calls
 
 
+def unchecked_part_numbers(record: TurnRecord) -> list[str]:
+    """Part numbers the user named in this turn with no lookup behind them, which memory must not answer for."""
+    return [
+        named for named in named_in(record.query) if not any(covers(lookup.query, named) for lookup in record.lookups)
+    ]
+
+
 def problems_in(answer: str, record: TurnRecord, requirements: Requirements) -> list[str]:
     """Why an answer cannot go out. An empty list means it can."""
     if not answer.strip():
@@ -67,7 +75,7 @@ def problems_in(answer: str, record: TurnRecord, requirements: Requirements) -> 
         [record.query],
         [requirements.model_dump(mode="json", exclude_none=True)],
     )
-    return find_violations(answer, known) + _TOOL_NAME.findall(answer)
+    return find_violations(answer, known) + _TOOL_NAME.findall(answer) + unchecked_part_numbers(record)
 
 
 async def _timed_call(

@@ -8,7 +8,7 @@ Streaming makes a chat feel faster, but a streamed number has already reached th
 
 ## Decision
 
-`POST /api/conversation` answers with one complete JSON document. Before it leaves the server, a validator checks that every number in the text appears in the data the tools returned during that turn. On a failure the model gets one retry with the reason, and after a second failure the answer comes from a template built only from tool data. The check runs inside `wrap_model_call`, before the message reaches the graph, so a rejected number never enters the agent's memory.
+`POST /api/conversation` answers with one complete JSON document. Before it leaves the server, a validator checks that every number in the text appears in the data the tools returned during that turn. The same check rejects an answer that skips the lookup of a part number the user named in that turn, because an answer with no number in it would otherwise pass from memory. On a failure the model gets one retry with the reason, and after a second failure the answer comes from a template built only from tool data. The check runs inside `wrap_model_call`, before the message reaches the graph, so a rejected number never enters the agent's memory.
 
 The `products` array and the `outcome` are decided by code from tool results. The model writes neither. A turn with no data tells two cases apart: `mark_out_of_scope` makes it `out_of_scope`, and anything else is `ambiguous`. That tool replaced a check for a question mark in the answer, which labelled "Please provide the part number." as out of scope. It costs one more model call on a refusal, and a refusal without the tool reads as `ambiguous`, the milder label.
 

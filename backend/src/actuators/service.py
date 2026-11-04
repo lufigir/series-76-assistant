@@ -1,5 +1,5 @@
 from src.actuators.matching import MAX_MATCHES, SUPPLY_TABLES, rank
-from src.actuators.part_numbers import normalize, similar_to, starting_with
+from src.actuators.part_numbers import names_a_number, normalize, similar_to, starting_with
 from src.actuators.repository import ActuatorRepository
 from src.actuators.schemas import LookupResult, Requirements, SearchResult
 
@@ -12,7 +12,7 @@ class ActuatorService:
         part_number = normalize(query)
         if part_number is None:
             candidates = starting_with(query, await self._actuators.part_numbers())
-            status = "ambiguous" if candidates else "invalid_format"
+            status = "ambiguous" if candidates or not names_a_number(query) else "invalid_format"
             return LookupResult(status=status, query=query, suggestions=candidates)
 
         actuator = await self._actuators.get(part_number)

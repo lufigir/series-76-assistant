@@ -1,35 +1,19 @@
 package com.series76.assistant.ui.chat
 
-import android.Manifest
-import android.content.ClipData
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,68 +22,46 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.series76.assistant.R
 import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.Electrical
 import com.series76.assistant.data.remote.Rating
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
-import com.series76.assistant.ui.components.PulsingDot
 import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.Series76Theme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val USER_ITEM = "user"
 private const val ASSISTANT_ITEM = "assistant"
 private const val WORKING_ITEM = "working"
-private const val ONE_SECOND_MILLIS = 1000L
 
 @Composable
 fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String) -> Unit) {
@@ -318,281 +280,6 @@ private fun StartPanel(onPick: (String) -> Unit) {
     }
 }
 
-@Composable
-private fun UserMessage(message: ChatMessage, onRetry: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-        // A flat tinted block, not a bubble: this reads as a query put to a tool, not as a text message.
-        Text(
-            message.text,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier =
-                Modifier.widthIn(max = 320.dp)
-                    .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.medium)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-        message.error?.let { error ->
-            Text(
-                error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-            TextButton(onClick = onRetry) { Text("Try again") }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AssistantMessage(
-    message: ChatMessage,
-    unit: TorqueDisplay,
-    isLatest: Boolean,
-    onSuggestion: (String) -> Unit,
-    onOpenDebug: () -> Unit,
-) {
-    val clipboard = LocalClipboard.current
-    val haptics = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
-    Column(
-        // pointerInput and not combinedClickable, which would announce the gesture to end users using TalkBack.
-        modifier =
-            Modifier.fillMaxWidth().pointerInput(message.id) {
-                detectTapGestures(
-                    onLongPress = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onOpenDebug()
-                    },
-                )
-            },
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        OutcomeNote(
-            message.outcome,
-            hasResults =
-                message.products.isNotEmpty() || message.alternatives.isNotEmpty() || message.suggestions.isNotEmpty(),
-        )
-        Text(message.text, style = MaterialTheme.typography.bodyLarge)
-        // Only on the latest answer: on an older one, a tap would answer a question the conversation has moved past.
-        // Above the results, because a long list would otherwise push the answer to a question off the screen.
-        if (isLatest && message.followUps.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                message.followUps.forEach { followUp ->
-                    SuggestionChip(onClick = { onSuggestion(followUp) }, label = { Text(followUp) })
-                }
-            }
-        }
-        if (message.products.isNotEmpty()) {
-            ProductResults(
-                title = resultsTitle(message.products.map { it.partNumber }, message.matches),
-                products = message.products,
-                defaultUnit = unit,
-                requirements = message.requirements,
-                // A match met everything. A model from a lookup met nothing in particular, as it was never checked.
-                unmetByModel =
-                    message.products.map { product ->
-                        if (product.partNumber in message.matches) emptyList() else null
-                    },
-            )
-        }
-        if (message.alternatives.isNotEmpty()) {
-            ProductResults(
-                title = "Closest alternatives",
-                products = message.alternatives.map { it.actuator },
-                defaultUnit = unit,
-                requirements = message.requirements,
-                unmetByModel = message.alternatives.map { it.unmet },
-            )
-        }
-        if (message.suggestions.isNotEmpty()) {
-            SectionLabel("Did you mean")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                message.suggestions.forEach { suggestion ->
-                    SuggestionChip(onClick = { onSuggestion(suggestion) }, label = { Text(suggestion) })
-                }
-            }
-        }
-        IconButton(
-            onClick = {
-                scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("answer", message.text))) }
-            },
-            modifier = Modifier.align(Alignment.End),
-        ) {
-            Icon(
-                painterResource(R.drawable.ic_copy),
-                contentDescription = "Copy answer",
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun OutcomeNote(outcome: String?, hasResults: Boolean) {
-    val note = outcomeNote(outcome, hasResults) ?: return
-    Text(
-        note,
-        style = MaterialTheme.typography.labelLarge,
-        color =
-            when (outcomeTone(outcome)) {
-                OutcomeTone.CAUTION -> MaterialTheme.colorScheme.tertiary
-                OutcomeTone.NEGATIVE -> MaterialTheme.colorScheme.error
-                OutcomeTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
-    )
-}
-
-@Composable
-private fun WorkingAnswer() {
-    val elapsed by
-        produceState(0) {
-            while (true) {
-                delay(ONE_SECOND_MILLIS)
-                value += 1
-            }
-        }
-    WorkingRow(workingText(elapsed))
-}
-
-@Composable
-private fun WorkingRow(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun Composer(
-    uiState: ChatUiState,
-    draft: String,
-    onDraftChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onToggleRecording: () -> Unit,
-    onCancelRecording: () -> Unit,
-    onMicDenied: () -> Unit,
-) {
-    val context = LocalContext.current
-    val permission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) onToggleRecording() else onMicDenied()
-        }
-    val onMic = {
-        val granted =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        if (granted) onToggleRecording() else permission.launch(Manifest.permission.RECORD_AUDIO)
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            uiState.voiceError?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 6.dp),
-                )
-            }
-            AnimatedContent(
-                targetState = uiState.voice,
-                transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
-                label = "composer",
-            ) { voice ->
-                when (voice) {
-                    VoiceState.RECORDING -> RecordingBar(onStop = onToggleRecording, onCancel = onCancelRecording)
-                    VoiceState.TRANSCRIBING ->
-                        Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), Alignment.CenterStart) {
-                            WorkingRow("Transcribing. You can review it before sending.")
-                        }
-                    VoiceState.IDLE -> TextComposer(draft, onDraftChange, uiState.sending, onSend, onMic)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TextComposer(
-    draft: String,
-    onDraftChange: (String) -> Unit,
-    sending: Boolean,
-    onSend: () -> Unit,
-    onMic: () -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    val focus = LocalFocusManager.current
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedTextField(
-            value = draft,
-            onValueChange = onDraftChange,
-            placeholder = { Text("Ask about an actuator") },
-            shape = MaterialTheme.shapes.medium,
-            maxLines = 4,
-            modifier = Modifier.weight(1f),
-        )
-        // One slot for both: with nothing to send, the microphone is the only action that makes sense.
-        AnimatedContent(
-            targetState = draft.isBlank(),
-            transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
-            label = "action",
-        ) { empty ->
-            if (empty) {
-                IconButton(onClick = onMic, modifier = Modifier.size(56.dp)) {
-                    Icon(
-                        painterResource(R.drawable.ic_mic),
-                        contentDescription = "Record a voice message",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                FilledIconButton(
-                    onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                        // What comes back is a table to read, and the keyboard would cover most of it.
-                        focus.clearFocus()
-                        onSend()
-                    },
-                    enabled = !sending,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.size(56.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecordingBar(onStop: () -> Unit, onCancel: () -> Unit) {
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .height(56.dp)
-                .border(1.dp, MaterialTheme.colorScheme.error, MaterialTheme.shapes.medium)
-                .padding(start = 14.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        PulsingDot(color = MaterialTheme.colorScheme.error)
-        Text("Listening", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Discard recording") }
-        FilledIconButton(
-            onClick = onStop,
-            shape = MaterialTheme.shapes.medium,
-            colors =
-                IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-        ) {
-            Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop recording")
-        }
-    }
-}
 
 private val PREVIEW_PRODUCT =
     ActuatorData(

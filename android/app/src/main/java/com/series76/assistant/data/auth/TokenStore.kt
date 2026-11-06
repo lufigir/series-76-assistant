@@ -17,6 +17,9 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -36,8 +39,22 @@ private object TextSerializer : Serializer<String> {
     override suspend fun writeTo(t: String, output: OutputStream) = output.write(t.encodeToByteArray())
 }
 
+/** Where the token lives. The interface lets JVM tests replace the Keystore, which only exists on a device. */
+interface TokenSource {
+    val token: Flow<String?>
+
+    /** True after the backend rejected the token, until the next sign-in; a manual sign-out leaves it false. */
+    val expired: StateFlow<Boolean>
+
+    suspend fun save(token: String)
+
+    suspend fun clear()
+
+    suspend fun expire()
+}
+
 /** The token, encrypted at rest with a key held by the Android Keystore. */
-class TokenStore(private val context: Context) {
+class TokenStore(private val context: Context) : TokenSource {
     // Opening the Keystore is slow enough to drop frames, so it waits for the first read, on the IO dispatcher.
     private val store: DataStore<String> by lazy {
         DataStoreFactory.create(
@@ -48,16 +65,30 @@ class TokenStore(private val context: Context) {
         )
     }
 
-    val token: Flow<String?> =
+    override val token: Flow<String?> =
         flow { emitAll(store.data) }
             .map { it.ifEmpty { null } }
             .flowOn(Dispatchers.IO)
 
-    suspend fun save(token: String) {
+    private val _expired = MutableStateFlow(false)
+
+    override val expired: StateFlow<Boolean> = _expired.asStateFlow()
+
+    override suspend fun save(token: String) {
         withContext(Dispatchers.IO) { store.updateData { token } }
+        if (token.isNotEmpty()) _expired.value = false
     }
 
-    suspend fun clear() = save("")
+    override suspend fun clear() {
+        _expired.value = false
+        save("")
+    }
+
+    // The flag goes up before the token goes away, so the login screen already sees it when it appears.
+    override suspend fun expire() {
+        _expired.value = true
+        save("")
+    }
 
     private fun createAead(): Aead {
         AeadConfig.register()

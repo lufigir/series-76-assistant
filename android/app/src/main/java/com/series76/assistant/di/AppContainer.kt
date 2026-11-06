@@ -3,6 +3,7 @@ package com.series76.assistant.di
 import android.content.Context
 import com.series76.assistant.BuildConfig
 import com.series76.assistant.data.auth.AuthRepository
+import com.series76.assistant.data.auth.TokenSource
 import com.series76.assistant.data.auth.TokenStore
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.Series76Api
@@ -58,7 +59,7 @@ class AppContainer(context: Context) {
     val voiceRepository = VoiceRepository(MediaAudioRecorder(context), api, json)
 }
 
-private class AuthInterceptor(private val tokenStore: TokenStore) : Interceptor {
+private class AuthInterceptor(private val tokenStore: TokenSource) : Interceptor {
     // OkHttp runs interceptors on its own threads, so blocking here does not touch the main thread.
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = runBlocking { tokenStore.token.first() }
@@ -69,7 +70,7 @@ private class AuthInterceptor(private val tokenStore: TokenStore) : Interceptor 
                 else request.newBuilder().header("Authorization", "Bearer $token").build()
             )
         // An expired token signs the user out, and the app goes back to login by observing the store.
-        if (response.code == 401 && token != null) runBlocking { tokenStore.clear() }
+        if (response.code == 401 && token != null) runBlocking { tokenStore.expire() }
         return response
     }
 }

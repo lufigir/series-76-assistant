@@ -5,14 +5,16 @@ import com.series76.assistant.data.remote.LoginRequest
 import com.series76.assistant.data.remote.Series76Api
 import com.series76.assistant.data.remote.apiCall
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 
 class AuthRepository(
     private val api: Series76Api,
-    private val tokenStore: TokenStore,
+    private val tokenStore: TokenSource,
     private val json: Json,
 ) {
     val token: Flow<String?> = tokenStore.token
+    val sessionExpired: StateFlow<Boolean> = tokenStore.expired
 
     suspend fun login(email: String, password: String): ApiResult<Unit> =
         apiCall(json) { tokenStore.save(api.login(LoginRequest(email.trim(), password)).token) }

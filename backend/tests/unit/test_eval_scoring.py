@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from tests.evals.cases import CASES
-from tests.evals.scoring import Turn, score_turn
+from tests.evals.scoring import Turn, cases_passing_every_run, score_turn
 
 RESPONSE: dict[str, Any] = {
     "answer": "It delivers 30,975 in-lb and draws 7,4 A, and is not CSA certified.",
@@ -68,3 +68,8 @@ def test_case_ids_are_unique_and_every_category_has_cases() -> None:
         "out_of_scope",
         "data_sheet_notes",
     }
+
+
+def test_a_case_counts_as_reliable_only_when_every_repetition_passed() -> None:
+    results = [("lookup", True), ("lookup", True), ("follow-up", True), ("follow-up", False)]
+    assert cases_passing_every_run(results) == (1, 2)

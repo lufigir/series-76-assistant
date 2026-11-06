@@ -70,3 +70,15 @@ def score_turn(expected: Turn, response: dict[str, Any], trace: dict[str, Any]) 
         if response["requirements"].get(name) != value:
             failures.append(f"requirement {name} is {response['requirements'].get(name)}, expected {value}")
     return failures
+
+
+def cases_passing_every_run(results: list[tuple[str, bool]]) -> tuple[int, int]:
+    """pass^k: how many cases passed in every repetition, out of how many cases ran.
+
+    A case that passes one run in two is a coin toss for a user, so this counts it as failed where the per-run
+    total counts it as half right.
+    """
+    by_case: dict[str, bool] = {}
+    for case_id, passed in results:
+        by_case[case_id] = by_case.get(case_id, True) and passed
+    return sum(by_case.values()), len(by_case)

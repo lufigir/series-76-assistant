@@ -25,7 +25,7 @@ from src.agent.prompts import PROMPT_VERSION
 from src.core.config import Settings
 from src.main import create_app
 from tests.evals.cases import CASES
-from tests.evals.scoring import Case, score_turn
+from tests.evals.scoring import Case, cases_passing_every_run, score_turn
 
 BACKEND = Path(__file__).resolve().parents[2]
 RATE_LIMIT_WAIT_SECONDS = 65
@@ -105,6 +105,8 @@ def report(runs: list[CaseRun], settings: Settings, repeat: int) -> str:
     ]
     lines += [f"| {name} | {passed(group)} | {len(group)} |" for name, group in sorted(by_category.items())]
     lines += [f"| **Total** | **{passed(runs)}** | **{len(runs)}** |", ""]
+    reliable, cases = cases_passing_every_run([(run.case.id, not run.failures and not run.error) for run in runs])
+    lines += [f"Cases that passed in every repetition (pass^{repeat}): {reliable} of {cases}.", ""]
 
     turns = sum(len(run.case.turns) for run in runs if not run.error) or 1
     lines += [

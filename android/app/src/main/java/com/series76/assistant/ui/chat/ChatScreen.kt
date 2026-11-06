@@ -15,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,6 +60,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -264,15 +264,20 @@ private fun preferredUnit(requirements: Requirements?): TorqueDisplay =
 @Composable
 private fun RequirementsStrip(chips: List<String>) {
     if (chips.isEmpty()) return
+    // The strip stays pinned above the answers, so a long list folds to two lines and opens on a tap.
+    var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
         Text(
-            chips.joinToString(" · "),
+            requirementsLine(chips),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = if (expanded) Int.MAX_VALUE else 2,
+            overflow = TextOverflow.Ellipsis,
             modifier =
                 Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
+                    .clickable(onClickLabel = if (expanded) "Fold the requirements" else "Show every requirement") {
+                        expanded = !expanded
+                    }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -362,7 +367,11 @@ private fun AssistantMessage(
             },
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        OutcomeNote(message.outcome)
+        OutcomeNote(
+            message.outcome,
+            hasResults =
+                message.products.isNotEmpty() || message.alternatives.isNotEmpty() || message.suggestions.isNotEmpty(),
+        )
         Text(message.text, style = MaterialTheme.typography.bodyLarge)
         // Only on the latest answer: on an older one, a tap would answer a question the conversation has moved past.
         // Above the results, because a long list would otherwise push the answer to a question off the screen.
@@ -375,7 +384,7 @@ private fun AssistantMessage(
         }
         if (message.products.isNotEmpty()) {
             ProductResults(
-                title = resultsTitle(message.products.size, message.matches.isNotEmpty()),
+                title = resultsTitle(message.products.map { it.partNumber }, message.matches),
                 products = message.products,
                 defaultUnit = unit,
                 requirements = message.requirements,
@@ -420,8 +429,8 @@ private fun AssistantMessage(
 }
 
 @Composable
-private fun OutcomeNote(outcome: String?) {
-    val note = outcomeNote(outcome) ?: return
+private fun OutcomeNote(outcome: String?, hasResults: Boolean) {
+    val note = outcomeNote(outcome, hasResults) ?: return
     Text(
         note,
         style = MaterialTheme.typography.labelLarge,

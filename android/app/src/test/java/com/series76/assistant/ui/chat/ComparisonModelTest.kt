@@ -106,7 +106,7 @@ class ComparisonModelTest {
                     minTorque = TorqueRequirement(1000.0, "nm"),
                 ),
             )
-        assertEquals(listOf("Explosionproof", "24 V", "≥ 1000 Nm"), chips)
+        assertEquals(listOf("Explosionproof", "24 V", "≥ 1,000 Nm"), chips)
         assertTrue(requirementChips(Requirements()).isEmpty())
         assertNull(requirementChips(Requirements()).firstOrNull())
     }
@@ -188,9 +188,16 @@ class ComparisonModelTest {
         assertNull(outcomeNote("answered"))
         assertNull(outcomeNote("recommendation"))
         assertEquals("No exact match", outcomeNote("no_match"))
+        assertEquals("Needs more detail", outcomeNote("ambiguous", hasResults = true))
         assertEquals(OutcomeTone.CAUTION, outcomeTone("no_match"))
         assertEquals(OutcomeTone.NEGATIVE, outcomeTone("invalid_part_number"))
         assertEquals(OutcomeTone.NEUTRAL, outcomeTone("out_of_scope"))
+    }
+
+    @Test
+    fun `a clarifying question with nothing found carries no label, since the question says it`() {
+        assertNull(outcomeNote("ambiguous", hasResults = false))
+        assertEquals("Part number not found", outcomeNote("invalid_part_number", hasResults = false))
     }
 
     @Test
@@ -247,8 +254,36 @@ class ComparisonModelTest {
 
     @Test
     fun `a search result does not claim to be every model that fits`() {
-        assertEquals("Smallest that fit", resultsTitle(5, matched = true))
-        assertEquals("2 models", resultsTitle(2, matched = false))
+        assertEquals("Smallest that fit", resultsTitle(listOf("A", "B"), matches = listOf("A", "B")))
+        assertEquals("2 models", resultsTitle(listOf("A", "B"), matches = emptyList()))
+    }
+
+    @Test
+    fun `models from a lookup next to matches are not called a fit`() {
+        assertEquals("3 models", resultsTitle(listOf("A", "B", "C"), matches = listOf("B")))
+    }
+
+    @Test
+    fun `thousands are grouped as the data sheet prints them`() {
+        val large = actuator(ratings = listOf(Rating("on_off", 79700, 9000, 6641.7, 40)))
+        assertEquals("On/off 79,700 in-lb", summaryLine(large, TorqueDisplay.IN_LB))
+        assertEquals("6,641.7", rows(large, unit = TorqueDisplay.FT_LB).first { "Torque" in it.label }.values.single())
+        assertEquals(listOf("≥ 1,500.5 in-lb"), requirementChips(Requirements(minTorque = TorqueRequirement(1500.5, "in_lb"))))
+    }
+
+    @Test
+    fun `the requirements line wraps between requirements, never inside one`() {
+        assertEquals(
+            "220\u00A0V\u00A0single\u00A0phase · ≥\u00A01,500\u00A0in-lb · ≥\u00A0960\u00A0starts/\u2060h",
+            requirementsLine(listOf("220 V single phase", "≥ 1,500 in-lb", "≥ 960 starts/h")),
+        )
+    }
+
+    @Test
+    fun `a CSA requirement reads apart from the CSA row of the data sheet`() {
+        val checks = requirementChecks(Requirements(csaCertified = true, minCyclesPerHour = 1200), listOf(emptyList()))
+        assertEquals(listOf("Cycles per hour ≥ 1,200", "CSA certification"), checks.map { it.label })
+        assertTrue("CSA certified" in rows(actuator()).map { it.label })
     }
 
     @Test

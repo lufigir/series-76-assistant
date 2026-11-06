@@ -4,6 +4,9 @@ import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.Rating
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.data.remote.UnmetRequirement
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import kotlinx.serialization.json.JsonPrimitive
 
 enum class TorqueDisplay(val label: String, val apiName: String) {
@@ -63,9 +66,13 @@ private val UNMET_LABELS =
 
 private fun label(raw: String): String = LABELS[raw] ?: raw
 
-/** A value exactly as received, without the ".0" that a JSON float adds to a whole number. */
-private fun number(value: Double): String =
-    if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+// The data sheet groups thousands with commas, so a figure reads the same here as in the table it came from.
+private val GROUPED = DecimalFormat("#,##0.##########", DecimalFormatSymbols(Locale.US))
+
+/** A value exactly as received, grouped, and without the ".0" that a JSON float adds to a whole number. */
+private fun number(value: Double): String = GROUPED.format(value)
+
+private fun number(value: Int): String = GROUPED.format(value)
 
 private fun primitive(value: JsonPrimitive?): String {
     if (value == null || value.content == "null") return "not published"
@@ -75,6 +82,13 @@ private fun primitive(value: JsonPrimitive?): String {
 fun unmetText(unmet: UnmetRequirement): String =
     "${UNMET_LABELS[unmet.requirement] ?: unmet.requirement}: " +
         "needs ${primitive(unmet.required)}, has ${primitive(unmet.actual)}"
+
+/**
+ * One line of requirements that wraps between them, so no figure is split from its unit. A no-break space holds
+ * the words of a requirement together, and a word joiner stops the break a line would otherwise take after "/".
+ */
+fun requirementsLine(chips: List<String>): String =
+    chips.joinToString(" · ") { it.replace(" ", "\u00A0").replace("/", "/\u2060") }
 
 fun requirementChips(requirements: Requirements): List<String> =
     buildList {
@@ -86,21 +100,21 @@ fun requirementChips(requirements: Requirements): List<String> =
             val unit = TorqueDisplay.entries.firstOrNull { it.apiName == torque.unit }?.label ?: torque.unit
             add("≥ ${number(torque.value)} $unit")
         }
-        requirements.minDutyPct?.let { add("Duty ≥ $it%") }
-        requirements.maxSpeedSec?.let { add("Speed ≤ $it s") }
+        requirements.minDutyPct?.let { add("Duty ≥ ${number(it)}%") }
+        requirements.maxSpeedSec?.let { add("Speed ≤ ${number(it)} s") }
         requirements.maxFla?.let { add("FLA ≤ ${number(it)} A") }
         requirements.maxLra?.let { add("LRA ≤ ${number(it)} A") }
-        requirements.maxMotorWatts?.let { add("Motor ≤ $it W") }
-        requirements.minCyclesPerHour?.let { add("≥ $it cycles/h") }
-        requirements.minStartsPerHour?.let { add("≥ $it starts/h") }
+        requirements.maxMotorWatts?.let { add("Motor ≤ ${number(it)} W") }
+        requirements.minCyclesPerHour?.let { add("≥ ${number(it)} cycles/h") }
+        requirements.minStartsPerHour?.let { add("≥ ${number(it)} starts/h") }
         if (requirements.csaCertified) add("CSA certified")
     }
 
 private fun torque(rating: Rating, unit: TorqueDisplay): String =
     when (unit) {
-        TorqueDisplay.NM -> rating.torqueNm.toString()
-        TorqueDisplay.IN_LB -> rating.torqueInLb.toString()
-        TorqueDisplay.FT_LB -> rating.torqueFtLb.toString()
+        TorqueDisplay.NM -> number(rating.torqueNm)
+        TorqueDisplay.IN_LB -> number(rating.torqueInLb)
+        TorqueDisplay.FT_LB -> number(rating.torqueFtLb)
     }
 
 /**
@@ -146,9 +160,9 @@ fun specRows(products: List<ActuatorData>, unit: TorqueDisplay): List<SpecRow> {
         ratingRows.filterNotNull() +
         electricalRows.filterNotNull() +
         listOfNotNull(
-            row("Cycles per hour") { it.cyclesPerHour?.toString() },
-            row("Starts per hour") { it.startsPerHour?.toString() },
-            row("Motor (W)") { it.motorWatts?.toString() },
+            row("Cycles per hour") { it.cyclesPerHour?.let(::number) },
+            row("Starts per hour") { it.startsPerHour?.let(::number) },
+            row("Motor (W)") { it.motorWatts?.let(::number) },
         )
 }
 
@@ -157,13 +171,16 @@ data class SpecTable(val columns: List<String>, val rows: List<SpecRow>)
 
 enum class OutcomeTone { CAUTION, NEGATIVE, NEUTRAL }
 
-/** A note for the turns that did not simply answer. A normal answer needs no label to say that it is one. */
-fun outcomeNote(outcome: String?): String? =
+/**
+ * A note for the turns that did not simply answer. A normal answer needs no label to say that it is one, and neither
+ * does a clarifying question with nothing found, such as the reply to a greeting: the question already says it.
+ */
+fun outcomeNote(outcome: String?, hasResults: Boolean = true): String? =
     when (outcome) {
         "no_match" -> "No exact match"
         "invalid_part_number" -> "Part number not found"
         "missing_data" -> "Not published"
-        "ambiguous" -> "Needs more detail"
+        "ambiguous" -> "Needs more detail".takeIf { hasResults }
         "out_of_scope" -> "Outside the catalog"
         else -> null
     }
@@ -242,14 +259,15 @@ fun requirementChecks(requirements: Requirements?, unmetByModel: List<List<Unmet
                 val unit = TorqueDisplay.entries.firstOrNull { it.apiName == torque.unit }?.label ?: torque.unit
                 add("Torque ≥ ${number(torque.value)} $unit" to setOf("min_torque_nm", "min_torque_in_lb", "min_torque_ft_lb"))
             }
-            requirements?.minDutyPct?.let { add("Duty ≥ $it%" to setOf("min_duty_pct")) }
-            requirements?.maxSpeedSec?.let { add("Speed ≤ $it s" to setOf("max_speed_sec")) }
+            requirements?.minDutyPct?.let { add("Duty ≥ ${number(it)}%" to setOf("min_duty_pct")) }
+            requirements?.maxSpeedSec?.let { add("Speed ≤ ${number(it)} s" to setOf("max_speed_sec")) }
             requirements?.maxFla?.let { add("FLA ≤ ${number(it)} A" to setOf("max_fla")) }
             requirements?.maxLra?.let { add("LRA ≤ ${number(it)} A" to setOf("max_lra")) }
-            requirements?.maxMotorWatts?.let { add("Motor ≤ $it W" to setOf("max_motor_watts")) }
-            requirements?.minCyclesPerHour?.let { add("Cycles/h ≥ $it" to setOf("min_cycles_per_hour")) }
-            requirements?.minStartsPerHour?.let { add("Starts/h ≥ $it" to setOf("min_starts_per_hour")) }
-            if (requirements?.csaCertified == true) add("CSA certified" to setOf("csa_certified"))
+            requirements?.maxMotorWatts?.let { add("Motor ≤ ${number(it)} W" to setOf("max_motor_watts")) }
+            requirements?.minCyclesPerHour?.let { add("Cycles per hour ≥ ${number(it)}" to setOf("min_cycles_per_hour")) }
+            requirements?.minStartsPerHour?.let { add("Starts per hour ≥ ${number(it)}" to setOf("min_starts_per_hour")) }
+            // The data sheet rows already have a "CSA certified" row, so the requirement is named apart from it.
+            if (requirements?.csaCertified == true) add("CSA certification" to setOf("csa_certified"))
         }
     val covered = stated.flatMap { it.second }.toSet()
     // A miss the list above does not name still has to show, so nothing the backend reported can go unseen.
@@ -268,8 +286,12 @@ private fun checkResult(unmet: List<UnmetRequirement>?, keys: Set<String>): Chec
     return CheckResult(CheckState.UNMET, miss.actual?.let { "Has ${primitive(it)}" } ?: "Not published")
 }
 
-/** A search returns the smallest few of what fits, so calling them "5 models" would contradict "11 fit" in the answer. */
-fun resultsTitle(models: Int, matched: Boolean): String = if (matched) "Smallest that fit" else "$models models"
+/**
+ * A search returns the smallest few of what fits, so calling them "5 models" would contradict "11 fit" in the answer.
+ * Models from a lookup were never checked, so a list that holds any of them is not called a fit.
+ */
+fun resultsTitle(products: List<String>, matches: List<String>): String =
+    if (matches.isNotEmpty() && products.all { it in matches }) "Smallest that fit" else "${products.size} models"
 
 /** A narrow column would otherwise wrap in the middle of the digits, where a code is easiest to misread. */
 fun partNumberOnTwoLines(partNumber: String): String = partNumber.replaceFirst("-", "-\n")

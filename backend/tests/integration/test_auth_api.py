@@ -113,7 +113,7 @@ async def test_an_unexpected_error_does_not_leak_its_details(app: FastAPI, clien
     response = await client.get("/test-only/explode")
     assert response.status_code == 500
     assert "hunter2" not in response.text
-    assert response.json()["message"] == "Something went wrong on the server. Please try again."
+    assert response.json()["message"] == "Something went wrong on our side. Please try again."
     assert response.json()["trace_id"]
 
 

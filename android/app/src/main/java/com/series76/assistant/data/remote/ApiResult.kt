@@ -12,9 +12,10 @@ sealed interface ApiResult<out T> {
     data class Failure(val message: String) : ApiResult<Nothing>
 }
 
-const val UNREACHABLE_MESSAGE = "The server can't be reached. Check that the backend is running and try again."
-const val TIMEOUT_MESSAGE = "The server took too long to answer. Please try again."
-const val UNEXPECTED_MESSAGE = "The server sent an unexpected response. Please try again."
+// These reach end users, so they name what the user can do, not the parts of the system.
+const val UNREACHABLE_MESSAGE = "Can't connect to the assistant. Check your connection and try again."
+const val TIMEOUT_MESSAGE = "The assistant is taking too long to answer. Please try again."
+const val UNEXPECTED_MESSAGE = "The app couldn't read the answer. Please try again."
 
 /** Every API call goes through here, so a screen only ever deals with a value or a message it can show. */
 suspend fun <T> apiCall(json: Json, block: suspend () -> T): ApiResult<T> =

@@ -54,4 +54,4 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_unexpected(_: Request, error: Exception) -> JSONResponse:
         logger.error("unhandled_exception", exc_info=error)
         # The app shows this message as it is, so it speaks to the user.
-        return _response(500, "Something went wrong on the server. Please try again.")
+        return _response(500, "Something went wrong on our side. Please try again.")

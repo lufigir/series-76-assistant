@@ -5,6 +5,7 @@ import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.ConversationRequest
 import com.series76.assistant.data.remote.ConversationResponse
 import com.series76.assistant.data.remote.LoginRequest
+import com.series76.assistant.data.remote.MAX_QUERY_LENGTH
 import com.series76.assistant.data.remote.MessageDebug
 import com.series76.assistant.data.remote.MessageView
 import com.series76.assistant.data.remote.Requirements
@@ -117,6 +118,13 @@ class ChatViewModelTest {
         viewModel(saved = saved).ask("First")
         viewModel(saved = saved).ask("Second")
         assertEquals("session-1", api.sent.last().sessionId)
+    }
+
+    @Test
+    fun `a draft stops at the length the backend accepts`() {
+        val chat = viewModel()
+        chat.updateDraft("a".repeat(MAX_QUERY_LENGTH + 50))
+        assertEquals(MAX_QUERY_LENGTH, chat.draft.length)
     }
 
     @Test

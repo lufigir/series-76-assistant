@@ -17,6 +17,9 @@ data class ApiErrorBody(val message: String)
 @Serializable
 data class SessionSummary(val id: String, val title: String, val date: String)
 
+/** The backend rejects a longer query with a 422, so the app stops the draft here instead. */
+const val MAX_QUERY_LENGTH = 2000
+
 @Serializable
 data class ConversationRequest(
     @SerialName("session_id") val sessionId: String? = null,

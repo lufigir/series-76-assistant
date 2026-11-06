@@ -11,6 +11,7 @@ import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.ApiResult
 import com.series76.assistant.data.remote.Candidate
 import com.series76.assistant.data.remote.ConversationResponse
+import com.series76.assistant.data.remote.MAX_QUERY_LENGTH
 import com.series76.assistant.data.remote.MessageView
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.data.voice.VoiceRepository
@@ -93,8 +94,10 @@ class ChatViewModel(
     }
 
     fun updateDraft(text: String) {
-        savedState[DRAFT] = text
-        draft = text
+        // A paste or a transcript added to the draft can pass the limit, so the cut happens here and not in the field.
+        val capped = text.take(MAX_QUERY_LENGTH)
+        savedState[DRAFT] = capped
+        draft = capped
         _uiState.update { it.copy(voiceError = null) }
     }
 

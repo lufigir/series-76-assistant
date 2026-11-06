@@ -1,7 +1,9 @@
 """The transcription endpoint as a client sees it, with a scripted model in place of the provider."""
 
 import asyncio
+import io
 import re
+import wave
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -79,6 +81,21 @@ async def test_silence_is_an_error_the_user_can_act_on(
 ) -> None:
     transcription_model.script = [reply]
     assert (await client.post("/api/transcriptions", content=WAV, headers=headers)).status_code == 422
+
+
+async def test_digital_silence_never_reaches_the_model(
+    client: AsyncClient, headers: dict[str, str], transcription_model: ScriptedChatModel
+) -> None:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(16000)
+        out.writeframes(b"\0" * 32000)
+    silent = buffer.getvalue()
+    calls = len(transcription_model.calls)
+    assert (await client.post("/api/transcriptions", content=silent, headers=headers)).status_code == 422
+    assert len(transcription_model.calls) == calls
 
 
 async def test_a_provider_failure_says_voice_is_unavailable(

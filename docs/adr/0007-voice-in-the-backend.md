@@ -26,3 +26,9 @@ Real silence exposed a trap in the format hint. With example part numbers in the
 The app records M4A at 64 kbps. At 32 kbps one Spanish sample came back with a wrong letter in its part number, and at 64 kbps that sample came back right. Both results are single passes.
 
 This sample is small and synthetic. It justifies the choice of engine and says nothing about a noisy plant floor.
+
+## Update: a different Gemini, and silence kept away from it
+
+A wider pass in November 2026 ran 8 phrases and 3 recordings without speech, three times each, in WAV and M4A, on seven audio models through OpenRouter. `gemini-3.5-flash-lite` dropped a zero from `11320000` in 8 of 24 WAV runs and 5 of 24 M4A runs, the error this decision exists to avoid. `gemini-3.1-flash-lite` got all 24 speech runs exact in both formats, and its one failure was pure digital silence, which it answered with an invented part number. Quiet room noise and white noise both came back as no speech.
+
+So `gemini-3.1-flash-lite` is the default, and digital silence never reaches it. The app reads the recorder's peak amplitude and drops a recording that never left 0. The backend checks a WAV for near-zero samples and answers 422 without a model call. M4A from another client still reaches the model, since checking it would need an audio decoder in the backend.

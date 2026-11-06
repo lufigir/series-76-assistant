@@ -49,6 +49,8 @@ class MediaAudioRecorder(private val context: Context) : AudioRecorder {
             }
             created.prepare()
             created.start()
+            // The first reading is always 0 and starts the window that stop() reads.
+            created.maxAmplitude
             recorder = created
             true
         } catch (_: IOException) {
@@ -64,8 +66,16 @@ class MediaAudioRecorder(private val context: Context) : AudioRecorder {
         val active = recorder ?: return null
         recorder = null
         return try {
+            // Given pure digital silence, as from a muted or missing microphone, the transcription model invented a
+            // part number. A real microphone never reads exactly 0, so that recording is never sent.
+            val peak = active.maxAmplitude
             active.stop()
-            file
+            if (peak > 0) {
+                file
+            } else {
+                file.delete()
+                null
+            }
         } catch (_: RuntimeException) {
             // MediaRecorder throws here when a recording is too short to hold any data.
             file.delete()

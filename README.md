@@ -17,7 +17,7 @@ Put your key in `OPENROUTER_API_KEY`; that is the only value you have to fill in
 | Variable | Default | Purpose |
 |---|---|---|
 | `LLM_PROVIDER` | `openrouter` | `openrouter` or `google` |
-| `LLM_MODEL` | `anthropic/claude-haiku-5.5` | Model that runs the agent |
+| `LLM_MODEL` | `deepseek/deepseek-v4.1-flash` | Model that runs the agent |
 | `TRANSCRIPTION_MODEL` | `google/gemini-3.5-flash-lite` | Model that transcribes voice |
 | `GOOGLE_API_KEY` | none | Needed only when `LLM_PROVIDER=google` |
 | `JWT_SECRET` | set in `.env.example` | Signs login tokens, at least 32 characters; replace it anywhere but a local machine |
@@ -142,10 +142,10 @@ The code follows Google's recommended layers in one Gradle module: `data` (repos
 
 All of them come from environment variables.
 
-- **Agent:** `anthropic/claude-haiku-5.5` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering, and at USD 0.10 and 0.50 per million tokens a turn costs about USD 0.0004 (estimated from the tokens measured on Gemini).
+- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [72 of 72](docs/evals/deepseek-v4.1-flash.md) at 2.9 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 (list price times the tokens measured). Of the cheap models tried on the current prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
 - **Development and evals:** `gemini-3.5-flash-lite` on Google's free tier, to keep the assessment's budget intact.
-- **Voice:** `google/gemini-3.5-flash-lite`, the engine that got part numbers exact in the comparison below.
-- **Ingestion:** two vision models that must agree.
+- **Voice:** `google/gemini-3.1-flash-lite`, which got every part number exact on 24 recordings where `gemini-3.5-flash-lite` dropped a zero from `11320000` in 8 ([comparison](docs/evals/README.md#voice)).
+- **Ingestion:** `anthropic/claude-haiku-5.5` checked by `google/gemini-3.1-flash-lite`, two vision models that must agree. Haiku misread none of the 1,410 reviewed values, and no cheaper model came close ([comparison](docs/evals/README.md#ingestion)).
 
 ## Tests
 
@@ -164,7 +164,7 @@ The evals send 36 cases to a real model: part number data, follow-ups, recommend
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
 ```
 
-The latest run [passed 71 of 72](docs/evals/gemini-3.5-flash-lite.md) on `gemini-3.5-flash-lite`. In the failed run, "What is its torque?" with nothing discussed before it was labelled `invalid_part_number` when it should have been `ambiguous`.
+On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 72 of 72. [The comparison](docs/evals/README.md) has every model tried, with its report.
 
 ## Optional features
 
@@ -184,6 +184,8 @@ Passwords are stored as Argon2 hashes. Login returns a JWT that lasts 12 hours, 
 The app records M4A, sends it to `POST /api/transcriptions` as the raw request body (WAV or M4A, up to 5 MB) and puts the returned text in the input box for the user to review before sending. The backend discards the audio. Reviewing matters because a part number heard wrong would get a confident answer about the wrong actuator.
 
 I compared engines on four phrases in English and Spanish, with a synthetic voice and one pass each. Whisper tiny and base on `sherpa-onnx` got part numbers wrong, and Gemini with the format described in its prompt got them exact (ADR 7). The sample is small and says nothing about a noisy plant floor.
+
+Pure digital silence, as from a muted microphone, made the model invent a part number. The app never sends a recording whose peak amplitude is 0, and the backend refuses a WAV of near-zero samples before any model call.
 
 OpenRouter refuses audio with a 402 when the account holds under USD 0.50, and the assessment's account was close to that when measured. If that happens, the endpoint answers 503, the app says so, and typing keeps working. To test voice anyway, use the Google settings from [Setup](#setup).
 

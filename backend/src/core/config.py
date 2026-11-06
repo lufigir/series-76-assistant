@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     llm_provider: Literal["openrouter", "google"] = "openrouter"
-    llm_model: str = "anthropic/claude-haiku-5.5"
-    transcription_model: str = "google/gemini-3.5-flash-lite"
+    llm_model: str = "deepseek/deepseek-v4.1-flash"
+    transcription_model: str = "google/gemini-3.1-flash-lite"
     llm_max_output_tokens: int = Field(default=800, gt=0)
     llm_timeout_seconds: int = Field(default=30, gt=0)
     turn_timeout_seconds: int = Field(default=75, gt=0)

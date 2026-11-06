@@ -99,7 +99,7 @@ Only test users and catalog questions go to these services. Deleting a user casc
 | Queries per catalog lookup or search | 3 (asserted in a test) | 3 | One actuator query and two `selectinload` |
 | Database connections | Pool of 5, overflow 5, plus 5 for the checkpointer | Under 5 each | A few simultaneous turns in an evaluation |
 | Model calls per turn | 6, plus one validator retry; 8 tool calls; 800 output tokens per call | 1.9, measured | `MAX_MODEL_CALLS` and `MAX_TOOL_CALLS` |
-| OpenRouter budget | What `/api/v1/credits` reports; read it before a run | USD 0.0004 per turn, estimated with Haiku 5.5 prices from the tokens measured on Gemini (3,478 in, 78 out) | 1.9 model calls per turn |
+| OpenRouter budget | The key's USD 10 limit, which `/api/v1/key` reports; `/api/v1/credits` shows the whole account | USD 0.0003 per turn on `deepseek-v4.1-flash`, list price times the tokens measured (5,267 in, 177 out) | 2.0 model calls per turn |
 | Full ingestion | Same budget | USD 0.05, measured | Reuse `--saved` instead |
 | Google free tier | 15 requests per minute on `gemini-3.5-flash-lite`, measured; per day not measured | About 90 requests per eval pass | Eval repetitions |
 

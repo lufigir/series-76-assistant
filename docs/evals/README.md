@@ -2,14 +2,15 @@
 
 ## Agent
 
-Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
+Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, and the first two rows were rerun with 37 cases on the current prompt (see [After a prompt fix](#after-a-prompt-fix)), through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
 
 | Model | Passed | Ended in the template | Latency | Tokens in / out | USD per turn | Report |
 |---|---:|---:|---:|---:|---:|---|
-| `deepseek/deepseek-v4.1-flash` (default) | 72 of 72 | 0 | 2.9 s | 5,267 / 177 | 0.0003 | [report](deepseek-v4.1-flash.md) |
-| `gemini-3.5-flash-lite`, on Google's free tier | 72 of 72 | 0 | 3.2 s | 3,688 / 72 | 0.0006 on OpenRouter | [report](gemini-3.5-flash-lite.md) |
+| `deepseek/deepseek-v4.1-flash` (default) | 74 of 74 | 0 | 3.2 s | 5,435 / 207 | 0.0003 | [report](deepseek-v4.1-flash.md) |
+| `gemini-3.5-flash-lite`, on Google's free tier | 74 of 74 | 0 | 2.3 s | 3,793 / 75 | 0.0006 on OpenRouter | [report](gemini-3.5-flash-lite.md) |
 | `qwen/qwen3.7-flash` | 68 of 72 | 3 | 7.3 s | 5,425 / 521 | 0.0002 | [report](qwen3.7-flash.md) |
 | `deepseek/deepseek-v4-flash` | 67 of 72 | 0 | 4.8 s | 5,347 / 211 | 0.0005 | [report](deepseek-v4-flash.md) |
+| `gemini-3.1-flash-lite`, on Google's free tier | 66 of 72 | 0 | 10.0 s | 3,760 / 79 | | [report](gemini-3.1-flash-lite.md) |
 | `openai/gpt-6-luna`, `openai/gpt-5-nano` | none ran | | | | | |
 
 The OpenAI pair accepts no `temperature` on any OpenRouter provider. With `require_parameters` set, OpenRouter finds no endpoint and every turn fails with `NotFoundResponseError`.
@@ -17,6 +18,14 @@ The OpenAI pair accepts no `temperature` on any OpenRouter provider. With `requi
 The rule: drop a model that cannot call the tools or that gets a catalog number wrong, then keep the cheapest one that passes at least 71 of 72 with no turn ending in the template. `qwen3.7-flash` costs less per turn, but it missed 4 cases, 3 turns fell back to the template and it took 7.3 s.
 
 `gemini-3.5-flash-lite` ties on accuracy and stays the development model, since Google's free tier costs nothing. Paid on OpenRouter it costs about twice as much per turn as `deepseek-v4.1-flash`, which is why it is not the default.
+
+`gemini-3.1-flash-lite`, the voice model, is no agent: it left out the notices the prompt requires (not CSA certified, a rating with no stated service, a field the row does not publish) in 6 runs, and took 10 s a turn.
+
+### After a prompt fix
+
+On November 6 a scenario outside the set, weatherproof at 24 V DC with at least 9000 Nm, drew two false claims in three tries: that no model reaches 9000 Nm, though `767C00-11320000/A` does on 220 V, and that 24 V DC does not exist, though the explosionproof tables have it. The validator let both through, since 9000 came from the user and neither claim holds a new number. The tool had checked only the supply, so the prompt now says the other requirements were not checked on any supply (`926ed3355650`), and a 37th case pins it.
+
+On that prompt `deepseek-v4.1-flash` passed 74 of 74 at 3.2 s and `gemini-3.5-flash-lite` 74 of 74 at 2.3 s, every case in both repetitions. Both had passed 72 of 72 on the earlier prompt.
 
 ## Voice
 

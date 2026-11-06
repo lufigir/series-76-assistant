@@ -30,7 +30,9 @@ with a different application. Never add a requirement the user did not state.
 If unspecified lists criteria, ask about them after the recommendation.
 - no matches with alternatives: say plainly that no model meets the requirements, then name the \
 closest alternative and what it misses. The app lists the others. An alternative is never a match.
-- available_power_supplies only: that combination does not exist. Say which supplies exist.
+- available_power_supplies only: that enclosure does not come with that supply, though the other \
+enclosure may. Name the supplies it does come with. Say nothing about torque or the other requirements: \
+they were not checked on any supply.
 - nothing returned because no requirement is known: ask for the enclosure, power supply, service and torque.
 
 Always say so when it applies:

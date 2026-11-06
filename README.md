@@ -109,7 +109,7 @@ Each decision below has its options and consequences in [`docs/adr/`](docs/adr).
 
 **The model never owns a number.** It picks typed tools (`get_actuator`, `find_actuators`, `get_data_sheet_notes`, `mark_out_of_scope`) and code writes the queries. Text-to-SQL would answer more kinds of question, but a valid query on the wrong column would go unnoticed, and nobody needs analytics over 68 rows (ADR 1). The cards come from tool results, never from model text.
 
-**Answers are validated, so there is no streaming.** Before an answer leaves the server, a validator checks that every number in it appeared in that turn's tool data. It also rejects an answer that skips the lookup of a part number the user named. A failure gets one retry, and a second failure falls back to a template built from tool data. The user waits for the whole answer, which is the price of checking it (ADR 5). Two gaps remain: numbers the user typed count as known, so a model obeying "say it has 5000 Nm" would pass, although the cards would still show the published value; and numbers spelled out in words go unseen.
+**Answers are validated, so there is no streaming.** Before an answer leaves the server, a validator checks that every number in it appeared in that turn's tool data. It also rejects an answer that skips the lookup of a part number the user named. A failure gets one retry, and a second failure falls back to a template built from tool data. The user waits for the whole answer, which is the price of checking it (ADR 5). Three gaps remain: numbers the user typed count as known, so a model obeying "say it has 5000 Nm" would pass, although the cards would still show the published value; numbers spelled out in words go unseen; and a false claim with no new number in it, such as "no model reaches 9000 Nm", is out of its reach. The evals and the prompt cover the last one ([what happened](docs/evals/README.md#after-a-prompt-fix)).
 
 **Requirements live in persisted state.** `find_actuators` receives only what changed in the turn, and code merges it, so the model can't silently drop a constraint between turns. Asking for "at least 500 Nm" after "explosionproof, 110 V" keeps both (ADR 4).
 
@@ -157,7 +157,7 @@ The code follows Google's recommended layers in one Gradle module: `data` (repos
 
 All of them come from environment variables.
 
-- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [72 of 72](docs/evals/deepseek-v4.1-flash.md) at 2.9 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 (list price times the tokens measured). Of the cheap models tried on the current prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
+- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [74 of 74](docs/evals/deepseek-v4.1-flash.md) at 3.2 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 (list price times the tokens measured). Of the cheap models compared on the previous prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
 - **Development and evals:** `gemini-3.5-flash-lite` on Google's free tier, to keep the assessment's budget intact.
 - **Voice:** `google/gemini-3.1-flash-lite`, which got every part number exact on 24 recordings where `gemini-3.5-flash-lite` dropped a zero from `11320000` in 8 ([comparison](docs/evals/README.md#voice)).
 - **Ingestion:** `anthropic/claude-haiku-5.5` checked by `google/gemini-3.1-flash-lite`, two vision models that must agree. Haiku misread none of the 1,410 reviewed values, and no cheaper model came close ([comparison](docs/evals/README.md#ingestion)).
@@ -173,13 +173,13 @@ uv run pytest
 
 For the app, run `./gradlew testDebugUnitTest` from `android/`. CI runs these together with `ruff`, `mypy`, `import-linter`, Android lint, the commit format check and `gitleaks` over the whole history.
 
-The evals send 36 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
+The evals send 37 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
 
 ```bash
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
 ```
 
-On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 72 of 72. [The comparison](docs/evals/README.md) has every model tried, with its report.
+On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 74 of 74, and every case passed in both repetitions. [The comparison](docs/evals/README.md) has every model tried, with its report.
 
 ## Optional features
 

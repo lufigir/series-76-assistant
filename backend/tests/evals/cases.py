@@ -341,6 +341,27 @@ CASES = (
         (Turn("Weatherproof at 24 V", outcome="no_match", tools=(SEARCH,), no_products=True),),
     ),
     Case(
+        # Only the supply was checked here. 767C00-11320000/A reaches 9000 Nm on 220 V, so a claim about torque
+        # would be false, and 24 V DC does exist in the explosionproof tables.
+        "missing-supply-says-nothing-about-the-rest",
+        "no_match",
+        (
+            Turn(
+                "Weatherproof, 24 V DC, at least 9000 Nm",
+                outcome="no_match",
+                tools=(SEARCH,),
+                no_products=True,
+                forbidden=(
+                    "no model reaches",
+                    "none reach",
+                    "no model can",
+                    "not offered at all",
+                    "isn't offered at all",
+                ),
+            ),
+        ),
+    ),
+    Case(
         "certification-rules-out-the-big-sizes",
         "no_match",
         (

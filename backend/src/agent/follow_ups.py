@@ -41,6 +41,9 @@ _SUPPLIES = {
 
 _USE = {"en": "Use {supply}", "es": "Usar {supply}"}
 
+# Material caps a row of buttons at three and Apple an action sheet at four with Cancel. More reads as a menu.
+MAX_FOLLOW_UPS = 3
+
 
 def _relax_key(requirement: str) -> str:
     return "torque" if requirement.startswith("min_torque") else requirement
@@ -55,9 +58,10 @@ def follow_ups(query: str, searches: list[SearchResult]) -> list[str]:
     if not latest.matches and latest.alternatives:
         # A service mismatch has no button: the service is what the user asked for, and it is never relaxed.
         misses = [_relax_key(unmet.requirement) for unmet in latest.alternatives[0].unmet]
-        return [_RELAX[miss][language] for miss in dict.fromkeys(misses) if miss in _RELAX]
+        return [_RELAX[miss][language] for miss in dict.fromkeys(misses) if miss in _RELAX][:MAX_FOLLOW_UPS]
     if not latest.matches and latest.available_power_supplies:
-        return [_USE[language].format(supply=_SUPPLIES[supply]) for supply in latest.available_power_supplies]
+        supplies = latest.available_power_supplies[:MAX_FOLLOW_UPS]
+        return [_USE[language].format(supply=_SUPPLIES[supply]) for supply in supplies]
     if latest.unspecified:
         return _OPTIONS[latest.unspecified[0]][language]
     return []

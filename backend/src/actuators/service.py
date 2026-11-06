@@ -3,6 +3,9 @@ from src.actuators.part_numbers import names_a_number, normalize, similar_to, st
 from src.actuators.repository import ActuatorRepository
 from src.actuators.schemas import LookupResult, Requirements, SearchResult
 
+# Iyengar and Lepper's limited set held 6 options, where 24 or 30 turned people away.
+MAX_AMBIGUOUS_CANDIDATES = 6
+
 
 class ActuatorService:
     def __init__(self, actuators: ActuatorRepository) -> None:
@@ -13,7 +16,9 @@ class ActuatorService:
         if part_number is None:
             candidates = starting_with(query, await self._actuators.part_numbers())
             status = "ambiguous" if candidates or not names_a_number(query) else "invalid_format"
-            return LookupResult(status=status, query=query, suggestions=candidates)
+            # "761" fits 14 models and "76" all 68. That many buttons is a catalog, so the answer asks for more digits.
+            shown = candidates if len(candidates) <= MAX_AMBIGUOUS_CANDIDATES else []
+            return LookupResult(status=status, query=query, suggestions=shown)
 
         actuator = await self._actuators.get(part_number)
         if actuator is None:

@@ -42,6 +42,13 @@ async def test_a_partial_number_is_ambiguous_and_lists_what_it_could_be(service:
     assert result.suggestions == ["761A00-11300000/A", "761A00-11320000/A", "761A00-11330C00/A"]
 
 
+@pytest.mark.parametrize("query", ["761", "76"])
+async def test_a_partial_number_that_fits_too_many_lists_none(service: ActuatorService, query: str) -> None:
+    result = await service.lookup(query)
+    assert result.status == "ambiguous"
+    assert result.suggestions == []
+
+
 @pytest.mark.parametrize("query", ["", "it", "hello", "ignore the tables"])
 async def test_text_without_a_digit_names_no_part_number_so_it_is_ambiguous(
     service: ActuatorService, query: str

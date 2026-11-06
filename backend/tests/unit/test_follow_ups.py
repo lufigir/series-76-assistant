@@ -41,6 +41,18 @@ def test_no_match_offers_to_relax_what_the_closest_model_misses(actuator: Actuat
     ]
 
 
+def test_no_more_than_three_buttons_are_offered(actuator: ActuatorData) -> None:
+    misses = ("min_torque_nm", "max_lra", "min_duty_pct", "csa_certified", "min_starts_per_hour")
+    search = SearchResult(alternatives=[_alternative(actuator, *misses)], unspecified=[])
+    assert follow_ups("At least 9000 Nm", [search]) == [
+        "Drop the torque minimum",
+        "Drop the LRA limit",
+        "Drop the duty minimum",
+    ]
+    supplies = SearchResult(available_power_supplies=list(PowerSupply), unspecified=[])
+    assert len(follow_ups("At 480 V", [supplies])) == 3
+
+
 def test_a_service_mismatch_is_never_offered_as_something_to_relax(actuator: ActuatorData) -> None:
     search = SearchResult(alternatives=[_alternative(actuator, "service")], unspecified=[])
     assert follow_ups("Modulating", [search]) == []

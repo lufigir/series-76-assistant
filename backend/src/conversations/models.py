@@ -24,6 +24,16 @@ class Conversation(TimestampMixin, Base):
     busy_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class TurnStart(TimestampMixin, Base):
+    """One row per turn a user started, kept for the length of the rate window and then deleted."""
+
+    __tablename__ = "turn_starts"
+    __table_args__ = (Index("ix_turn_starts_user_id_created_at", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+
 class Message(TimestampMixin, Base):
     """What the app shows. The agent's own memory is in the checkpointer (ADR 3)."""
 

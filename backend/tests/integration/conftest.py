@@ -61,7 +61,8 @@ async def app(
     database_url: str, chat_model: ScriptedChatModel, transcription_model: ScriptedChatModel
 ) -> AsyncIterator[FastAPI]:
     application = create_app(
-        Settings(database_url=database_url, jwt_secret=JWT_SECRET),
+        # The cap has its own tests; here it would only make the suite depend on how fast it runs.
+        Settings(database_url=database_url, jwt_secret=JWT_SECRET, turns_per_minute=10_000),
         chat_model=chat_model,
         transcription_model=transcription_model,
     )

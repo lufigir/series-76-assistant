@@ -13,6 +13,7 @@ from src.core.logging import logger
 MAX_TITLE_LENGTH = 80
 # The lease outlives the turn's deadline, so it only ever expires after a crash.
 LEASE_MARGIN = timedelta(seconds=15)
+RATE_WINDOW = timedelta(minutes=1)
 
 
 class NotFoundError(AppError):
@@ -21,12 +22,26 @@ class NotFoundError(AppError):
 
 
 class ConversationService:
-    def __init__(self, conversations: ConversationRepository, assistant: Assistant, turn_timeout_seconds: int) -> None:
+    def __init__(
+        self,
+        conversations: ConversationRepository,
+        assistant: Assistant,
+        turn_timeout_seconds: int,
+        turns_per_minute: int,
+    ) -> None:
         self._conversations = conversations
         self._assistant = assistant
         self._turn_timeout_seconds = turn_timeout_seconds
+        self._turns_per_minute = turns_per_minute
 
     async def converse(self, user: CurrentUser, session_id: uuid.UUID | None, query: str) -> ConversationResponse:
+        # Each conversation runs one turn at a time, but a user can open many, and each turn spends model budget.
+        if not await self._conversations.start_turn(user.id, self._turns_per_minute, RATE_WINDOW):
+            raise AppError(
+                429,
+                "You are sending questions too fast. Please wait a minute and try again.",
+                headers={"Retry-After": str(int(RATE_WINDOW.total_seconds()))},
+            )
         if session_id is None:
             return await self._start(user, query)
         return await self._continue(user, session_id, query)

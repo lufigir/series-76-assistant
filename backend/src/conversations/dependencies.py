@@ -15,6 +15,7 @@ def get_conversation_service(
         ConversationRepository(session),
         request.app.state.assistant,
         request.app.state.settings.turn_timeout_seconds,
+        request.app.state.settings.turns_per_minute,
     )
 
 

@@ -138,7 +138,8 @@ async def run_all(args: argparse.Namespace) -> tuple[str, str]:
         seed(engine)
         engine.dispose()
 
-        settings = Settings(database_url=url, jwt_secret=jwt_secret)
+        # --delay paces the evals, so the per-user cap stays out of their way.
+        settings = Settings(database_url=url, jwt_secret=jwt_secret, turns_per_minute=10_000)
         print(f"Running {len(cases)} cases on {settings.llm_provider} {settings.llm_model}")
         app = create_app(settings)
         runs = []

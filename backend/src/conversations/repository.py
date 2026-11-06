@@ -1,12 +1,12 @@
 import uuid
 from datetime import timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.schemas import TurnResult, TurnTrace
 from src.conversations.enums import MessageRole
-from src.conversations.models import Conversation, Message
+from src.conversations.models import Conversation, Message, TurnStart
 from src.conversations.schemas import MessageDebug, MessageView, SessionSummary
 
 MAX_SESSIONS_LISTED = 100
@@ -19,6 +19,24 @@ class ConversationRepository:
     async def release_connection(self) -> None:
         """A model call takes seconds, and the request must not hold a pooled connection while it waits."""
         await self._session.rollback()
+
+    async def start_turn(self, user_id: uuid.UUID, limit: int, window: timedelta) -> bool:
+        """Record a turn unless the user already started `limit` of them inside `window`.
+
+        A turn is counted when it starts, not when its answer is saved, so turns running at the same time in
+        different conversations count too. The advisory lock makes the count and the insert one step per user.
+        """
+        await self._session.execute(select(func.pg_advisory_xact_lock(func.hashtext(str(user_id)))))
+        since = func.now() - window
+        await self._session.execute(delete(TurnStart).where(TurnStart.user_id == user_id, TurnStart.created_at < since))
+        started = await self._session.scalar(
+            select(func.count()).select_from(TurnStart).where(TurnStart.user_id == user_id)
+        )
+        allowed = (started or 0) < limit
+        if allowed:
+            self._session.add(TurnStart(user_id=user_id))
+        await self._session.commit()
+        return allowed
 
     async def exists(self, conversation_id: uuid.UUID, user_id: uuid.UUID) -> bool:
         query = select(Conversation.id).where(Conversation.id == conversation_id, Conversation.user_id == user_id)

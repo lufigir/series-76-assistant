@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     llm_max_output_tokens: int = Field(default=800, gt=0)
     llm_timeout_seconds: int = Field(default=30, gt=0)
     turn_timeout_seconds: int = Field(default=75, gt=0)
-    # Several times what a person types in a minute, and low enough that a runaway script cannot drain the key.
-    turns_per_minute: int = Field(default=10, gt=0)
+    # A guard against bursts and runaway loops, high enough for an evaluator's test script (ADR 9).
+    turns_per_minute: int = Field(default=60, gt=0)
     openrouter_api_key: SecretStr | None = None
     google_api_key: SecretStr | None = None
 

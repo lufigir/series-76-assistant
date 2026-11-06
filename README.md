@@ -70,7 +70,7 @@ Beyond the fixed `session_id` and `answer`, a turn returns:
 - `follow_ups`, next steps the app offers as buttons, such as "Modulating" or "Drop the torque minimum". Code writes them from the search result, and a tap sends one as an ordinary question.
 - `requirements`, what the conversation has accumulated so far.
 
-A second turn on a conversation that is still answering gets a 409, and an eleventh turn within a minute gets a 429 with `Retry-After`. A conversation that belongs to another user gets a 404. Errors share one shape: `{status, message, data, trace_id}`.
+A second turn on a conversation that is still answering gets a 409, and a user past 60 turns in a minute gets a 429 with `Retry-After`. A conversation that belongs to another user gets a 404. Errors share one shape: `{status, message, data, trace_id}`.
 
 ## Ingestion
 
@@ -136,7 +136,7 @@ The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS
 | LLM07 System prompt leakage | The prompt holds no secrets, so leaking it costs nothing |
 | LLM08 Vector and embedding weaknesses | No embeddings (ADR 2) |
 | LLM09 Misinformation | The number validator and the template fallback (ADR 5) |
-| LLM10 Unbounded consumption | Each turn has limits (calls, 800 output tokens, 2,000 characters, 75 s) and one turn at a time per conversation. Across conversations, a user gets 10 turns a minute (`TURNS_PER_MINUTE`), counted when each turn starts, then a 429 |
+| LLM10 Unbounded consumption | Each turn has limits (calls, 800 output tokens, 2,000 characters, 75 s) and one turn at a time per conversation. Across conversations, a user gets 60 turns a minute (`TURNS_PER_MINUTE`), counted when each turn starts, then a 429. The key's own USD limit caps the spend (ADR 9) |
 
 ### The app
 

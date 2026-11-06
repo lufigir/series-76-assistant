@@ -18,12 +18,12 @@ Put your key in `OPENROUTER_API_KEY`; that is the only value you have to fill in
 |---|---|---|
 | `LLM_PROVIDER` | `openrouter` | `openrouter` or `google` |
 | `LLM_MODEL` | `deepseek/deepseek-v4.1-flash` | Model that runs the agent |
-| `TRANSCRIPTION_MODEL` | `google/gemini-3.5-flash-lite` | Model that transcribes voice |
+| `TRANSCRIPTION_MODEL` | `google/gemini-3.1-flash-lite` | Model that transcribes voice |
 | `GOOGLE_API_KEY` | none | Needed only when `LLM_PROVIDER=google` |
 | `JWT_SECRET` | set in `.env.example` | Signs login tokens, at least 32 characters; replace it anywhere but a local machine |
 | `EXTRACTION_MODEL`, `EXTRACTION_VERIFY_MODEL` | `anthropic/claude-haiku-5.5`, `google/gemini-3.1-flash-lite` | Models that transcribe the PDF during ingestion |
 
-Model names follow the provider. Without an OpenRouter budget, set `LLM_PROVIDER=google`, `LLM_MODEL=gemini-3.5-flash-lite`, `TRANSCRIPTION_MODEL=gemini-3.5-flash-lite` and a `GOOGLE_API_KEY` from Google AI Studio's free tier.
+Model names follow the provider. Without an OpenRouter budget, set `LLM_PROVIDER=google`, `LLM_MODEL=gemini-3.5-flash-lite`, `TRANSCRIPTION_MODEL=gemini-3.1-flash-lite` and a `GOOGLE_API_KEY` from Google AI Studio's free tier.
 
 ## Backend
 
@@ -101,7 +101,7 @@ An emulator reaches the backend at `http://10.0.2.2:8000/`, which is the default
 ./gradlew installLocal -PbackendUrl=http://192.168.1.20:8000/
 ```
 
-Log in with a test user. **To open the debug screen, press and hold an answer.** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. Nothing on screen advertises the gesture, so end users don't run into it.
+Log in with a test user. **To open the debug screen, press and hold an answer.** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. No button or hint shows the gesture, so end users won't find it by accident.
 
 ## Design and architecture
 
@@ -158,7 +158,7 @@ uv run pytest
 
 For the app, run `./gradlew testDebugUnitTest` from `android/`. CI runs these together with `ruff`, `mypy`, `import-linter`, Android lint, the commit format check and `gitleaks` over the whole history.
 
-The evals send 36 cases to a real model: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
+The evals send 36 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
 
 ```bash
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
@@ -187,7 +187,7 @@ I compared engines on four phrases in English and Spanish, with a synthetic voic
 
 Pure digital silence, as from a muted microphone, made the model invent a part number. The app never sends a recording whose peak amplitude is 0, and the backend refuses a WAV of near-zero samples before any model call.
 
-OpenRouter refuses audio with a 402 when the account holds under USD 0.50, and the assessment's account was close to that when measured. If that happens, the endpoint answers 503, the app says so, and typing keeps working. To test voice anyway, use the Google settings from [Setup](#setup).
+OpenRouter refuses audio with a 402 when the account holds under USD 0.50. If that happens, the endpoint answers 503, the app says so, and typing keeps working. To test voice anyway, use the Google settings from [Setup](#setup).
 
 On an emulator, turn on "Virtual microphone uses host audio input" under Extended controls. Otherwise the recording is silent and the app says no speech was heard.
 

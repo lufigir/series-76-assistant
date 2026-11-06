@@ -19,7 +19,7 @@ The app records and calls `POST /api/transcriptions`. The backend transcribes wi
 
 ## Consequences
 
-Voice costs budget and needs a connection, where an on-device engine would not. OpenRouter rejects audio with a 402 below USD 0.50 of credit, and the assessment's account was close to that when measured, so voice may fail during evaluation. The app then says so and leaves the keyboard available.
+Voice costs budget and needs a connection, where an on-device engine would not. OpenRouter rejects audio with a 402 below USD 0.50 of credit, so voice fails on an account that runs low. The app then says so and leaves the keyboard available.
 
 Real silence exposed a trap in the format hint. With example part numbers in the prompt, Gemini answered pure silence with those same numbers, and a recording on the emulator with nobody speaking produced a valid-looking `761A00-11300000/A`. The prompt now describes the format in words and asks for `NO_SPEECH`. Five silent recordings and one of noise then came back as no speech, and the four speech samples kept their part numbers. A test keeps part numbers out of the prompt.
 

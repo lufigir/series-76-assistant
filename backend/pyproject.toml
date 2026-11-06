@@ -140,7 +140,7 @@ layers = [
     "src.agent.state",
     "src.agent.follow_ups",
     "src.agent.fallback | src.agent.outcome",
-    "src.agent.number_validator | src.agent.schemas",
+    "src.agent.number_validator | src.agent.plain_text | src.agent.schemas",
 ]
 
 [[tool.importlinter.contracts]]

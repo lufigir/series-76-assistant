@@ -14,6 +14,7 @@ from src.actuators.part_numbers import covers, named_in
 from src.actuators.schemas import Requirements
 from src.agent.fallback import fallback_answer
 from src.agent.number_validator import find_violations, known_values
+from src.agent.plain_text import plain_text
 from src.agent.prompts import correction, with_requirements
 from src.agent.schemas import ModelCallTrace, ToolTrace
 from src.agent.state import AssistantState, TurnContext, TurnRecord, read_requirements
@@ -141,7 +142,7 @@ class GuardedTurnMiddleware(AgentMiddleware[AssistantState, TurnContext]):
             record.answer = fallback_answer(record.query, record.lookups, record.searches)
             return ModelResponse(result=[AIMessage(content=record.answer)])
 
-        record.answer = message.text
+        record.answer = plain_text(message.text)
         return response
 
     async def awrap_tool_call(

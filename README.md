@@ -123,6 +123,21 @@ Each decision below has its options and consequences in [`docs/adr/`](docs/adr).
 
 The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS.md#data). For example, the 220 V three-phase rows of sizes 761 and 762 exist as N/A, which is missing data and differs from an unknown part number. The example part number in the summary PDF is not in the tables at all.
 
+### Against the OWASP Top 10 for LLM applications
+
+| Risk | Where it stands |
+|---|---|
+| LLM01 Prompt injection | No detector. An injected instruction can only steer four read-only tools over a public catalog, the validator still checks every number, and the adversarial evals try it |
+| LLM02 Sensitive information disclosure | The model sees no secrets and no other user's data; another user's conversation answers 404, and logs keep ids and status codes, not bodies |
+| LLM03 Supply chain | `uv.lock` with a 7-day cooldown, `uv audit` in CI, GitHub Actions and skills pinned to commits |
+| LLM04 Data poisoning | The catalog comes from two vision models that must agree, then a review against the PDF |
+| LLM05 Improper output handling | Answers are plain text, and the cards come from tool results, never from model text |
+| LLM06 Excessive agency | Tools only read, and a turn stops at 6 model calls and 8 tool calls |
+| LLM07 System prompt leakage | The prompt holds no secrets, so leaking it costs nothing |
+| LLM08 Vector and embedding weaknesses | No embeddings (ADR 2) |
+| LLM09 Misinformation | The number validator and the template fallback (ADR 5) |
+| LLM10 Unbounded consumption | Each turn has limits (calls, 800 output tokens, 2,000 characters, 75 s) and one turn at a time per conversation. Across conversations, a user gets 10 turns a minute (`TURNS_PER_MINUTE`), counted when each turn starts, then a 429 |
+
 ### The app
 
 The app should look like an engineering tool: white surfaces, cool grays, hairlines in place of shadows, and one blue for what can be pressed. Amber and red only ever mean a problem. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.

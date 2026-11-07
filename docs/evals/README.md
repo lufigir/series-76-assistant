@@ -35,7 +35,7 @@ Eight phrases with part numbers and requirements, in English and Spanish, spoken
 
 | Model | WAV | M4A | Main failure |
 |---|---:|---:|---|
-| `google/gemini-3.1-flash-lite` (default) | 30 of 33 | 30 of 33 | Invents a part number for pure digital silence, which the app and backend now keep from it |
+| `google/gemini-3.1-flash-lite` (default) | 30 of 33 | 30 of 33 | Invents a part number for pure digital silence, which the app and backend keep from it |
 | `google/gemini-3.5-flash-lite` | 25 of 33 | 28 of 33 | Drops a zero: `765Y30-1132000/A` |
 | `google/gemini-2.5-flash-lite` | 21 of 33 | | Mangles part numbers: `7604x30-…` |
 | `xiaomi/mimo-v2.6-flash` | 20 of 33 | | Writes numbers as words; invents one for silence |

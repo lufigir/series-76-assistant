@@ -1,6 +1,6 @@
 # Evals: deepseek/deepseek-v4.1-flash
 
-Model `deepseek/deepseek-v4.1-flash` on `openrouter`, prompt `926ed3355650`, 37 cases, 2 repetition(s).
+Model `deepseek/deepseek-v4.1-flash` on `openrouter`, prompt `06a904b16d2a`, 38 cases, 2 repetition(s).
 
 | Category | Passed | Runs |
 |---|---:|---:|
@@ -12,11 +12,11 @@ Model `deepseek/deepseek-v4.1-flash` on `openrouter`, prompt `926ed3355650`, 37 
 | missing_data | 4 | 4 |
 | no_match | 8 | 8 |
 | out_of_scope | 4 | 4 |
-| part_number_data | 16 | 16 |
+| part_number_data | 18 | 18 |
 | recommendation | 12 | 12 |
-| **Total** | **74** | **74** |
+| **Total** | **76** | **76** |
 
-Cases that passed in every repetition (pass^2): 37 of 37.
+Cases that passed in every repetition (pass^2): 38 of 38.
 
-Per turn, on average: 2.0 model calls, 5435 input tokens, 207 output tokens, 3.2 s.
-Runs where the validator asked for a retry: 2. Runs that ended in the template: 0.
+Per turn, on average: 2.0 model calls, 5379 input tokens, 210 output tokens, 2.9 s.
+Runs where the validator asked for a retry: 0. Runs that ended in the template: 0.

@@ -157,7 +157,7 @@ The code follows Google's recommended layers in one Gradle module: `data` (repos
 
 All of them come from environment variables.
 
-- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [74 of 74](docs/evals/deepseek-v4.1-flash.md) at 3.2 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 (list price times the tokens measured). Of the cheap models compared on the previous prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
+- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [76 of 76](docs/evals/deepseek-v4.1-flash.md) at 2.9 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 (list price times the tokens measured). Of the cheap models compared on the previous prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
 - **Development and evals:** `gemini-3.5-flash-lite` on Google's free tier, to keep the assessment's budget intact.
 - **Voice:** `google/gemini-3.1-flash-lite`, which got every part number exact on 24 recordings where `gemini-3.5-flash-lite` dropped a zero from `11320000` in 8 ([comparison](docs/evals/README.md#voice)).
 - **Ingestion:** `anthropic/claude-haiku-5.5` checked by `google/gemini-3.1-flash-lite`, two vision models that must agree. Haiku misread none of the 1,410 reviewed values, and no cheaper model came close ([comparison](docs/evals/README.md#ingestion)).
@@ -179,7 +179,7 @@ The evals send 37 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
 ```
 
-On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 74 of 74, and every case passed in both repetitions. [The comparison](docs/evals/README.md) has every model tried, with its report.
+On the current prompt, `deepseek/deepseek-v4.1-flash` passed 76 of 76, every case in both repetitions; `gemini-3.5-flash-lite` passed 74 of 74 on the prompt before it. [The comparison](docs/evals/README.md) has every model tried, with its report.
 
 ## Optional features
 

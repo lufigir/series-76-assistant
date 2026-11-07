@@ -22,6 +22,21 @@ CASES = (
         ),
     ),
     Case(
+        "bare-part-number-leaves-values-to-the-card",
+        "part_number_data",
+        (
+            # On a phone the answer repeated every value the card below it already showed.
+            Turn(
+                "763A00-11320000/A",
+                outcome="answered",
+                tools=(LOOKUP,),
+                first_product="763A00-11320000/A",
+                # 220 is also its supply voltage and 24 its speed in seconds, so neither is listed.
+                forbidden=("2650", "300", "1950", "1.3", "1.4"),
+            ),
+        ),
+    ),
+    Case(
         "part-number-typed-loosely",
         "part_number_data",
         (

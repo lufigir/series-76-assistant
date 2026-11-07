@@ -3,11 +3,13 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from langchain_core.language_models import BaseChatModel
 
 from src.actuators.provider import catalog_provider
+from src.actuators.router import router as actuators_router
 from src.agent.assistant import Assistant
+from src.auth.dependencies import get_current_user
 from src.auth.router import router as auth_router
 from src.conversations.router import router as conversations_router
 from src.core.checkpoints import open_checkpointer
@@ -52,6 +54,7 @@ def create_app(
     register_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(conversations_router)
+    app.include_router(actuators_router, dependencies=[Depends(get_current_user)])
     app.include_router(transcriptions_router)
 
     @app.get("/health", tags=["health"])

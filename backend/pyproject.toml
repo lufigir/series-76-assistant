@@ -100,7 +100,8 @@ layers = [
 name = "Inside actuators: service > repository, and matching stays pure"
 type = "layers"
 layers = [
-    "src.actuators.provider",
+    "src.actuators.router",
+    "src.actuators.dependencies | src.actuators.provider",
     "src.actuators.service",
     "src.actuators.repository | src.actuators.matching",
     "src.actuators.models | src.actuators.notes | src.actuators.part_numbers | src.actuators.schemas",

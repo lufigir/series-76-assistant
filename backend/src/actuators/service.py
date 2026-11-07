@@ -1,7 +1,7 @@
 from src.actuators.matching import MAX_MATCHES, SUPPLY_TABLES, rank
 from src.actuators.part_numbers import names_a_number, normalize, similar_to, starting_with
 from src.actuators.repository import ActuatorRepository
-from src.actuators.schemas import LookupResult, Requirements, SearchResult
+from src.actuators.schemas import CatalogEntry, LookupResult, Requirements, SearchResult
 
 # Iyengar and Lepper's limited set held 6 options, where 24 or 30 turned people away.
 MAX_AMBIGUOUS_CANDIDATES = 6
@@ -10,6 +10,9 @@ MAX_AMBIGUOUS_CANDIDATES = 6
 class ActuatorService:
     def __init__(self, actuators: ActuatorRepository) -> None:
         self._actuators = actuators
+
+    async def catalog(self) -> list[CatalogEntry]:
+        return await self._actuators.catalog()
 
     async def lookup(self, query: str) -> LookupResult:
         part_number = normalize(query)

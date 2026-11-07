@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 
 from src.actuators.enums import Enclosure, PowerSupply
 from src.actuators.models import Actuator
-from src.actuators.schemas import ActuatorData
+from src.actuators.schemas import ActuatorData, CatalogEntry
 
 
 def _with_data() -> Select[Actuator]:
@@ -21,6 +21,12 @@ class ActuatorRepository:
 
     async def part_numbers(self) -> list[str]:
         return list(await self._session.scalars(select(Actuator.part_number).order_by(Actuator.part_number)))
+
+    async def catalog(self) -> list[CatalogEntry]:
+        rows = await self._session.execute(
+            select(Actuator.part_number, Actuator.enclosure, Actuator.power_supply).order_by(Actuator.part_number)
+        )
+        return [CatalogEntry.model_validate(row) for row in rows]
 
     async def search(self, enclosure: Enclosure | None, supplies: list[PowerSupply] | None) -> list[ActuatorData]:
         """Available actuators with the given enclosure and supply, the two filters that are never relaxed."""

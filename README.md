@@ -56,6 +56,7 @@ Send the returned `session_id` with the next request to continue that conversati
 | `POST /api/conversation` | One turn |
 | `GET /api/sessions` | The user's conversations, newest first: id, title, date, and a preview and part numbers from the latest answer |
 | `GET /api/sessions/{id}/messages` | History to resume a conversation, latest messages first in pages, each page in reading order |
+| `GET /api/actuators/part-numbers` | Every part number with its enclosure and supply, which the app uses to complete and build part numbers |
 | `GET /api/messages/{id}/debug` | Tools, parameters, returned data, model, tokens, cost and latency of one answer |
 | `POST /api/transcriptions` | Audio to text |
 | `GET /health` | Liveness |

@@ -165,3 +165,13 @@ class LookupResult(BaseModel):
     query: str
     actuator: ActuatorData | None = None
     suggestions: list[str] = []
+
+
+class CatalogEntry(BaseModel):
+    """What a client needs to suggest and build part numbers, without the ratings."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    part_number: str
+    enclosure: Enclosure
+    power_supply: PowerSupply

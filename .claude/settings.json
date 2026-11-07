@@ -14,6 +14,15 @@
       "Bash(git diff:*)",
       "Bash(git log:*)"
     ],
+    "ask": [
+      "Bash(uv run python ingest.py)",
+      "Bash(uv run python ingest.py --pages *)",
+      "Bash(uv run python -m tests.evals.run)",
+      "Bash(uv run python -m tests.evals.run *)",
+      "Bash(docker compose down *)",
+      "Bash(git push)",
+      "Bash(git push *)"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.local)",

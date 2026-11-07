@@ -211,4 +211,4 @@ On an emulator, turn on "Virtual microphone uses host audio input" under Extende
 
 ## AI assistant setup
 
-The real configuration is committed: [`AGENTS.md`](AGENTS.md) holds the project rules, and [`.claude/`](.claude) holds the settings and the skills, with the source of each in [`.claude/skills/README.md`](.claude/skills/README.md).
+The real configuration is committed: [`AGENTS.md`](AGENTS.md) holds the project rules, and [`.claude/`](.claude) holds the settings and the skills, with the source of each in [`.claude/skills/README.md`](.claude/skills/README.md). The settings let tests, linters and Compose run without a prompt, ask before a paid ingestion, an eval run, `docker compose down` with flags such as `-v`, or a push, and keep the agent's file tools away from `.env`.

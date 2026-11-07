@@ -54,7 +54,7 @@ Send the returned `session_id` with the next request to continue that conversati
 | `POST /api/auth/login` | Email and password to a token |
 | `GET /api/auth/me` | The user behind a token |
 | `POST /api/conversation` | One turn |
-| `GET /api/sessions` | The user's conversations: id, title, date |
+| `GET /api/sessions` | The user's conversations: id, title, date, and a preview and part numbers from the latest answer |
 | `GET /api/sessions/{id}/messages` | History to resume a conversation |
 | `GET /api/messages/{id}/debug` | Tools, parameters, returned data, model, tokens, cost and latency of one answer |
 | `POST /api/transcriptions` | Audio to text |

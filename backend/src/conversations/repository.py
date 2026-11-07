@@ -1,7 +1,7 @@
 import uuid
 from datetime import timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.schemas import TurnResult, TurnTrace
@@ -10,6 +10,9 @@ from src.conversations.models import Conversation, Message, TurnStart
 from src.conversations.schemas import MessageDebug, MessageView, SessionSummary
 
 MAX_SESSIONS_LISTED = 100
+# Two lines on a phone hold about this much, and the app cuts the rest with an ellipsis.
+PREVIEW_LENGTH = 160
+PREVIEW_PART_NUMBERS = 3
 
 
 class ConversationRepository:
@@ -101,13 +104,31 @@ class ConversationRepository:
         return message_id
 
     async def list_sessions(self, user_id: uuid.UUID) -> list[SessionSummary]:
-        conversations = await self._session.scalars(
-            select(Conversation)
+        # One query: a lateral join picks each conversation's latest answer through the (conversation, sequence) index.
+        latest = (
+            select(Message.content, Message.products)
+            .where(Message.conversation_id == Conversation.id, Message.role == MessageRole.ASSISTANT)
+            .order_by(Message.sequence.desc())
+            .limit(1)
+            .lateral()
+        )
+        rows = await self._session.execute(
+            select(Conversation, latest.c.content, latest.c.products)
+            .outerjoin(latest, true())
             .where(Conversation.user_id == user_id)
             .order_by(Conversation.updated_at.desc())
             .limit(MAX_SESSIONS_LISTED)
         )
-        return [SessionSummary.model_validate(conversation) for conversation in conversations]
+        return [
+            SessionSummary(
+                id=conversation.id,
+                title=conversation.title,
+                date=conversation.updated_at,
+                preview=content[:PREVIEW_LENGTH] if content else None,
+                part_numbers=[product["part_number"] for product in products or []][:PREVIEW_PART_NUMBERS],
+            )
+            for conversation, content, products in rows
+        ]
 
     async def messages(self, conversation_id: uuid.UUID) -> list[MessageView]:
         messages = await self._session.scalars(

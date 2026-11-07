@@ -428,7 +428,7 @@ async def test_sessions_list_only_your_own_most_recent_first(
 
     sessions = (await client.get("/api/sessions", headers=headers)).json()
     assert [session["id"] for session in sessions[:2]] == [second, first]
-    assert set(sessions[0]) == {"id", "title", "date"}
+    assert set(sessions[0]) == {"id", "title", "date", "preview", "part_numbers"}
     assert sessions[0]["title"] == "Second conversation"
 
     others = (await client.get("/api/sessions", headers=other_headers)).json()
@@ -437,6 +437,21 @@ async def test_sessions_list_only_your_own_most_recent_first(
     chat_model.script = ["Three."]
     await ask(client, headers, "More", first)
     assert (await client.get("/api/sessions", headers=headers)).json()[0]["id"] == first
+
+
+async def test_a_session_previews_its_latest_answer(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = ["Which part number?"]
+    session_id = (await ask(client, headers, "Torque?")).json()["session_id"]
+    chat_model.script = [call("get_actuator", part_number=PART), RIGHT]
+    await ask(client, headers, f"Torque of {PART}?", session_id)
+
+    session = (await client.get("/api/sessions", headers=headers)).json()[0]
+
+    assert session["id"] == session_id
+    assert session["preview"] == RIGHT
+    assert session["part_numbers"] == [PART]
 
 
 async def test_someone_elses_conversation_does_not_exist_for_you(

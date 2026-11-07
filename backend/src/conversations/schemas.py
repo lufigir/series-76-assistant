@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from src.actuators.schemas import ActuatorData, Candidate, Requirements
 from src.agent.schemas import Outcome, TurnTrace
@@ -32,11 +32,13 @@ class ConversationResponse(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """A row of the conversation list. The preview and part numbers come from its latest answer."""
 
     id: uuid.UUID
     title: str
-    date: datetime = Field(validation_alias="updated_at")
+    date: datetime
+    preview: str | None
+    part_numbers: list[str]
 
 
 class MessageView(BaseModel):

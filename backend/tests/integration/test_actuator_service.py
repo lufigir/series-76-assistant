@@ -58,11 +58,28 @@ async def test_text_without_a_digit_names_no_part_number_so_it_is_ambiguous(
     assert result.suggestions == []
 
 
-@pytest.mark.parametrize("query", ["861A00-11300000/A", "ABC-123"])
+@pytest.mark.parametrize("query", ["ABC-123", "12345"])
 async def test_a_number_outside_the_format_is_invalid(service: ActuatorService, query: str) -> None:
     result = await service.lookup(query)
     assert result.status == "invalid_format"
     assert result.suggestions == []
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        # A transcript from a phone, with two zeros the speaker never said.
+        ("763A001132000000/A", "763A00-11320000/A"),
+        ("763A00-113200/A", "763A00-11320000/A"),
+        ("861A00-11300000/A", "761A00-11300000/A"),
+    ],
+)
+async def test_a_near_miss_outside_the_format_suggests_the_part_number(
+    service: ActuatorService, query: str, expected: str
+) -> None:
+    result = await service.lookup(query)
+    assert result.status == "invalid_format"
+    assert expected in result.suggestions
 
 
 async def test_find_recommends_and_reports_what_the_user_has_not_said(service: ActuatorService) -> None:

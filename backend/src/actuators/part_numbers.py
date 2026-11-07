@@ -44,5 +44,9 @@ def covers(looked_up: str, named: str) -> bool:
     return bool(first) and (first.startswith(second) or second.startswith(first))
 
 
-def similar_to(part_number: str, catalog: list[str]) -> list[str]:
-    return difflib.get_close_matches(part_number, catalog, n=_MAX_SUGGESTIONS, cutoff=_SUGGESTION_CUTOFF)
+def similar_to(raw: str, catalog: list[str]) -> list[str]:
+    """Catalog part numbers close to the input. Comparing compact forms lets a transcript with a digit
+    too many or too few, which fits no format, still lead to the number the speaker meant."""
+    by_compact = {compact(part_number): part_number for part_number in catalog}
+    close = difflib.get_close_matches(compact(raw), by_compact, n=_MAX_SUGGESTIONS, cutoff=_SUGGESTION_CUTOFF)
+    return [by_compact[match] for match in close]

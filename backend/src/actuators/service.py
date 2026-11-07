@@ -14,11 +14,13 @@ class ActuatorService:
     async def lookup(self, query: str) -> LookupResult:
         part_number = normalize(query)
         if part_number is None:
-            candidates = starting_with(query, await self._actuators.part_numbers())
-            status = "ambiguous" if candidates or not names_a_number(query) else "invalid_format"
+            catalog = await self._actuators.part_numbers()
+            candidates = starting_with(query, catalog)
+            if not candidates and names_a_number(query):
+                return LookupResult(status="invalid_format", query=query, suggestions=similar_to(query, catalog))
             # "761" fits 14 models and "76" all 68. That many buttons is a catalog, so the answer asks for more digits.
             shown = candidates if len(candidates) <= MAX_AMBIGUOUS_CANDIDATES else []
-            return LookupResult(status=status, query=query, suggestions=shown)
+            return LookupResult(status="ambiguous", query=query, suggestions=shown)
 
         actuator = await self._actuators.get(part_number)
         if actuator is None:

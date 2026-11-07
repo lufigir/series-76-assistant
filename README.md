@@ -176,13 +176,13 @@ uv run pytest
 
 For the app, run `./gradlew testDebugUnitTest` from `android/`. CI runs these together with `ruff`, `mypy`, `import-linter`, Android lint, the commit format check and `gitleaks` over the whole history.
 
-The evals send 37 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
+The evals send 38 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
 
 ```bash
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
 ```
 
-On the current prompt, `deepseek/deepseek-v4.1-flash` passed 76 of 76, every case in both repetitions; `gemini-3.5-flash-lite` passed 74 of 74 on the prompt before it. [The comparison](docs/evals/README.md) has every model tried, with its report.
+On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 76 of 76, every case in both repetitions. [The comparison](docs/evals/README.md) has every model tried, with its report.
 
 ## Optional features
 

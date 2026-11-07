@@ -2,12 +2,12 @@
 
 ## Agent
 
-Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, and the first two rows were rerun on later prompts (see [After a prompt fix](#after-a-prompt-fix)): the default on the current one with 38 cases, Gemini on the one before with 37, through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
+Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, and the first two rows were rerun on later prompts (see [After a prompt fix](#after-a-prompt-fix)): both on the current one with 38 cases, through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
 
 | Model | Passed | Ended in the template | Latency | Tokens in / out | USD per turn | Report |
 |---|---:|---:|---:|---:|---:|---|
 | `deepseek/deepseek-v4.1-flash` (default) | 76 of 76 | 0 | 2.9 s | 5,379 / 210 | 0.0003 | [report](deepseek-v4.1-flash.md) |
-| `gemini-3.5-flash-lite`, on Google's free tier | 74 of 74 | 0 | 2.3 s | 3,793 / 75 | 0.0006 on OpenRouter | [report](gemini-3.5-flash-lite.md) |
+| `gemini-3.5-flash-lite`, on Google's free tier | 76 of 76 | 0 | 2.6 s | 3,842 / 72 | 0.0006 on OpenRouter | [report](gemini-3.5-flash-lite.md) |
 | `qwen/qwen3.7-flash` | 68 of 72 | 3 | 7.3 s | 5,425 / 521 | 0.0002 | [report](qwen3.7-flash.md) |
 | `deepseek/deepseek-v4-flash` | 67 of 72 | 0 | 4.8 s | 5,347 / 211 | 0.0005 | [report](deepseek-v4-flash.md) |
 | `gemini-3.1-flash-lite`, on Google's free tier | 66 of 72 | 0 | 10.0 s | 3,760 / 79 | | [report](gemini-3.1-flash-lite.md) |
@@ -27,7 +27,7 @@ On November 6 a scenario outside the set, weatherproof at 24 V DC with at least 
 
 On that prompt `deepseek-v4.1-flash` passed 74 of 74 at 3.2 s and `gemini-3.5-flash-lite` 74 of 74 at 2.3 s, every case in both repetitions. Both had passed 72 of 72 on the earlier prompt.
 
-On November 7, on a phone, an answer to a bare part number repeated every figure its card already showed. The prompt now leaves those numbers to the card (`06a904b16d2a`), and a 38th case pins it. `deepseek-v4.1-flash` passed 76 of 76 at 2.9 s, every case in both repetitions; `gemini-3.5-flash-lite` has not run on this prompt.
+On November 7, on a phone, an answer to a bare part number repeated every figure its card already showed. The prompt now leaves those numbers to the card (`06a904b16d2a`), and a 38th case pins it. `deepseek-v4.1-flash` passed 76 of 76 at 2.9 s and `gemini-3.5-flash-lite` 76 of 76 at 2.6 s, every case in both repetitions.
 
 ## Voice
 

@@ -104,7 +104,7 @@ An emulator reaches the backend at `http://10.0.2.2:8000/`, which is the default
 ./gradlew installLocal -PbackendUrl=http://192.168.1.20:8000/
 ```
 
-Log in with a test user. **To open the debug screen, press and hold an answer and pick "Technical details".** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. The same menu copies the answer. No button or hint shows the gesture, so end users won't land on the debug screen by accident.
+Log in with a test user. **To open the debug screen, press and hold an answer and pick "Technical details".** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. The same menu copies the answer. No button or hint shows the gesture, so end users won't land on the debug screen by accident. The gesture authorizes no one, though; a user who finds it sees only the trace of their own answers, which holds no prompt, keys or other users' data. In production the route would require a developer role and traces would go to an OpenTelemetry backend instead (ADR 10).
 
 ## Design and architecture
 

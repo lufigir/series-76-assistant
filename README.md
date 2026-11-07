@@ -54,11 +54,13 @@ Send the returned `session_id` with the next request to continue that conversati
 | `POST /api/auth/login` | Email and password to a token |
 | `GET /api/auth/me` | The user behind a token |
 | `POST /api/conversation` | One turn |
-| `GET /api/sessions` | The user's conversations: id, title, date, and a preview and part numbers from the latest answer |
-| `GET /api/sessions/{id}/messages` | History to resume a conversation |
+| `GET /api/sessions` | The user's conversations, newest first: id, title, date, and a preview and part numbers from the latest answer |
+| `GET /api/sessions/{id}/messages` | History to resume a conversation, latest messages first in pages, each page in reading order |
 | `GET /api/messages/{id}/debug` | Tools, parameters, returned data, model, tokens, cost and latency of one answer |
 | `POST /api/transcriptions` | Audio to text |
 | `GET /health` | Liveness |
+
+The two lists differ from the shape the assessment suggests: each returns `{ items, next_cursor }`, 30 conversations or 50 messages a page, and `?cursor=` with the last `next_cursor` fetches the next one. A list without pages either stops at a fixed count, which hid older conversations, or grows without limit, and adding pages later would change the shape for every client. The cursor carries the sort key and a tiebreaker, `(updated_at, id)` or the message sequence, so a page boundary never skips or repeats a row while new turns arrive.
 
 Beyond the fixed `session_id` and `answer`, a turn returns:
 

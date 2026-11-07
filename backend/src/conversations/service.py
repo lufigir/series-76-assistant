@@ -6,7 +6,7 @@ from src.agent.assistant import Assistant
 from src.agent.schemas import TurnResult
 from src.auth.schemas import CurrentUser
 from src.conversations.repository import ConversationRepository
-from src.conversations.schemas import ConversationResponse, MessageDebug, MessageView, SessionSummary
+from src.conversations.schemas import ConversationResponse, MessageDebug, MessageView, Page, SessionSummary
 from src.core.errors import AppError
 from src.core.logging import logger
 
@@ -93,13 +93,13 @@ class ConversationService:
             requirements=result.requirements,
         )
 
-    async def sessions(self, user: CurrentUser) -> list[SessionSummary]:
-        return await self._conversations.list_sessions(user.id)
+    async def sessions(self, user: CurrentUser, cursor: str | None) -> Page[SessionSummary]:
+        return await self._conversations.list_sessions(user.id, cursor)
 
-    async def messages(self, user: CurrentUser, conversation_id: uuid.UUID) -> list[MessageView]:
+    async def messages(self, user: CurrentUser, conversation_id: uuid.UUID, cursor: str | None) -> Page[MessageView]:
         if not await self._conversations.exists(conversation_id, user.id):
             raise NotFoundError("Conversation not found")
-        return await self._conversations.messages(conversation_id)
+        return await self._conversations.messages(conversation_id, cursor)
 
     async def debug(self, user: CurrentUser, message_id: uuid.UUID) -> MessageDebug:
         debug = await self._conversations.debug(message_id, user.id)

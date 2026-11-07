@@ -9,6 +9,7 @@ from src.conversations.schemas import (
     ConversationResponse,
     MessageDebug,
     MessageView,
+    Page,
     SessionSummary,
 )
 
@@ -23,15 +24,19 @@ async def converse(
 
 
 @router.get("/sessions")
-async def list_sessions(user: CurrentUserDep, service: ConversationServiceDep) -> list[SessionSummary]:
-    return await service.sessions(user)
+async def list_sessions(
+    user: CurrentUserDep, service: ConversationServiceDep, cursor: str | None = None
+) -> Page[SessionSummary]:
+    """The most recent conversations first. Pass next_cursor back as cursor for the next page."""
+    return await service.sessions(user, cursor)
 
 
 @router.get("/sessions/{session_id}/messages")
 async def list_messages(
-    session_id: uuid.UUID, user: CurrentUserDep, service: ConversationServiceDep
-) -> list[MessageView]:
-    return await service.messages(user, session_id)
+    session_id: uuid.UUID, user: CurrentUserDep, service: ConversationServiceDep, cursor: str | None = None
+) -> Page[MessageView]:
+    """The latest messages in reading order. Pass next_cursor back as cursor for the ones before them."""
+    return await service.messages(user, session_id, cursor)
 
 
 @router.get("/messages/{message_id}/debug")

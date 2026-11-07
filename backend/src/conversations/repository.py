@@ -1,15 +1,19 @@
 import uuid
 from datetime import timedelta
 
-from sqlalchemy import delete, func, select, true, update
+from sqlalchemy import delete, func, select, true, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agent.schemas import TurnResult, TurnTrace
+from src.conversations.cursors import message_cursor, read_message_cursor, read_session_cursor, session_cursor
 from src.conversations.enums import MessageRole
 from src.conversations.models import Conversation, Message, TurnStart
-from src.conversations.schemas import MessageDebug, MessageView, SessionSummary
+from src.conversations.schemas import MessageDebug, MessageView, Page, SessionSummary
 
-MAX_SESSIONS_LISTED = 100
+# A phone screen shows about eight conversations, so a page fills a few screens before the next one loads.
+SESSIONS_PAGE = 30
+# The newest answers come first; older ones load as the reader scrolls up.
+MESSAGES_PAGE = 50
 # Two lines on a phone hold about this much, and the app cuts the rest with an ellipsis.
 PREVIEW_LENGTH = 160
 PREVIEW_PART_NUMBERS = 3
@@ -103,7 +107,7 @@ class ConversationRepository:
         await self._session.commit()
         return message_id
 
-    async def list_sessions(self, user_id: uuid.UUID) -> list[SessionSummary]:
+    async def list_sessions(self, user_id: uuid.UUID, cursor: str | None) -> Page[SessionSummary]:
         # One query: a lateral join picks each conversation's latest answer through the (conversation, sequence) index.
         latest = (
             select(Message.content, Message.products)
@@ -112,29 +116,49 @@ class ConversationRepository:
             .limit(1)
             .lateral()
         )
-        rows = await self._session.execute(
+        query = (
             select(Conversation, latest.c.content, latest.c.products)
             .outerjoin(latest, true())
             .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
-            .limit(MAX_SESSIONS_LISTED)
+            .order_by(Conversation.updated_at.desc(), Conversation.id.desc())
+            # One more than a page says whether another page exists, without a COUNT.
+            .limit(SESSIONS_PAGE + 1)
         )
-        return [
-            SessionSummary(
-                id=conversation.id,
-                title=conversation.title,
-                date=conversation.updated_at,
-                preview=content[:PREVIEW_LENGTH] if content else None,
-                part_numbers=[product["part_number"] for product in products or []][:PREVIEW_PART_NUMBERS],
-            )
-            for conversation, content, products in rows
-        ]
+        if cursor:
+            query = query.where(tuple_(Conversation.updated_at, Conversation.id) < read_session_cursor(cursor))
+        rows = (await self._session.execute(query)).all()
+        page = rows[:SESSIONS_PAGE]
+        last = page[-1][0] if page else None
+        return Page(
+            items=[
+                SessionSummary(
+                    id=conversation.id,
+                    title=conversation.title,
+                    date=conversation.updated_at,
+                    preview=content[:PREVIEW_LENGTH] if content else None,
+                    part_numbers=[product["part_number"] for product in products or []][:PREVIEW_PART_NUMBERS],
+                )
+                for conversation, content, products in page
+            ],
+            next_cursor=session_cursor(last.updated_at, last.id) if last and len(rows) > SESSIONS_PAGE else None,
+        )
 
-    async def messages(self, conversation_id: uuid.UUID) -> list[MessageView]:
-        messages = await self._session.scalars(
-            select(Message).where(Message.conversation_id == conversation_id).order_by(Message.sequence)
+    async def messages(self, conversation_id: uuid.UUID, cursor: str | None) -> Page[MessageView]:
+        query = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.sequence.desc())
+            .limit(MESSAGES_PAGE + 1)
         )
-        return [MessageView.model_validate(message) for message in messages]
+        if cursor:
+            query = query.where(Message.sequence < read_message_cursor(cursor))
+        rows = list(await self._session.scalars(query))
+        page = rows[:MESSAGES_PAGE]
+        return Page(
+            # Fetched newest first to take the latest page, then shown in reading order.
+            items=[MessageView.model_validate(message) for message in reversed(page)],
+            next_cursor=message_cursor(page[-1].sequence) if len(rows) > MESSAGES_PAGE else None,
+        )
 
     async def debug(self, message_id: uuid.UUID, user_id: uuid.UUID) -> MessageDebug | None:
         trace = await self._session.scalar(

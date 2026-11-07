@@ -15,7 +15,7 @@ class Conversation(TimestampMixin, Base):
     """Its id is the session_id of the API and the thread_id of the checkpointer."""
 
     __tablename__ = "conversations"
-    __table_args__ = (Index("ix_conversations_user_id_updated_at", "user_id", desc("updated_at")),)
+    __table_args__ = (Index("ix_conversations_user_id_updated_at_id", "user_id", desc("updated_at"), desc("id")),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))

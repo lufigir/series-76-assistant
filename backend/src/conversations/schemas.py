@@ -60,3 +60,10 @@ class MessageView(BaseModel):
 class MessageDebug(BaseModel):
     message_id: uuid.UUID
     trace: TurnTrace
+
+
+class Page[Item](BaseModel):
+    """One page of a list. next_cursor fetches the following one, and is null on the last page."""
+
+    items: list[Item]
+    next_cursor: str | None

@@ -114,7 +114,7 @@ async def test_conversations_survive_a_restart(
     assert body["outcome"] == "recommendation"
     assert body["products"][0]["part_number"] == "764X30-11300000/A"
     assert "Explosionproof at 110 V" in seen_text(restarted_model)
-    assert [message["role"] for message in history.json()] == ["user", "assistant", "user", "assistant"]
+    assert [message["role"] for message in history.json()["items"]] == ["user", "assistant", "user", "assistant"]
 
 
 async def test_an_invented_number_is_retried_and_never_reaches_memory(
@@ -310,7 +310,7 @@ async def test_a_failing_provider_answers_503_and_the_conversation_goes_on(
     chat_model.script = ["Back."]
     assert (await ask(client, headers, "Again", session_id)).json()["answer"] == "Back."
     history = await client.get(f"/api/sessions/{session_id}/messages", headers=headers)
-    assert [message["content"] for message in history.json()] == ["Hi", "Hello.", "Again", "Back."]
+    assert [message["content"] for message in history.json()["items"]] == ["Hi", "Hello.", "Again", "Back."]
 
 
 async def test_a_turn_failing_after_a_tool_call_does_not_break_the_next_one(
@@ -371,8 +371,8 @@ async def test_a_recommendation_names_its_matches_and_asks_for_the_next_criterio
     assert body["matches"] == [product["part_number"] for product in body["products"]]
     assert body["follow_ups"] == ["On/off", "Modulating"]
     history = await client.get(f"/api/sessions/{body['session_id']}/messages", headers=headers)
-    assert history.json()[-1]["follow_ups"] == ["On/off", "Modulating"]
-    assert history.json()[-1]["matches"] == body["matches"]
+    assert history.json()["items"][-1]["follow_ups"] == ["On/off", "Modulating"]
+    assert history.json()["items"][-1]["matches"] == body["matches"]
 
 
 async def test_a_lookup_is_a_card_but_not_a_match(
@@ -426,17 +426,17 @@ async def test_sessions_list_only_your_own_most_recent_first(
     chat_model.script = ["Two."]
     second = (await ask(client, headers, "Second conversation")).json()["session_id"]
 
-    sessions = (await client.get("/api/sessions", headers=headers)).json()
+    sessions = (await client.get("/api/sessions", headers=headers)).json()["items"]
     assert [session["id"] for session in sessions[:2]] == [second, first]
     assert set(sessions[0]) == {"id", "title", "date", "preview", "part_numbers"}
     assert sessions[0]["title"] == "Second conversation"
 
-    others = (await client.get("/api/sessions", headers=other_headers)).json()
+    others = (await client.get("/api/sessions", headers=other_headers)).json()["items"]
     assert not {first, second} & {session["id"] for session in others}
 
     chat_model.script = ["Three."]
     await ask(client, headers, "More", first)
-    assert (await client.get("/api/sessions", headers=headers)).json()[0]["id"] == first
+    assert (await client.get("/api/sessions", headers=headers)).json()["items"][0]["id"] == first
 
 
 async def test_a_session_previews_its_latest_answer(
@@ -447,7 +447,7 @@ async def test_a_session_previews_its_latest_answer(
     chat_model.script = [call("get_actuator", part_number=PART), RIGHT]
     await ask(client, headers, f"Torque of {PART}?", session_id)
 
-    session = (await client.get("/api/sessions", headers=headers)).json()[0]
+    session = (await client.get("/api/sessions", headers=headers)).json()["items"][0]
 
     assert session["id"] == session_id
     assert session["preview"] == RIGHT
@@ -484,7 +484,7 @@ async def test_a_user_message_has_no_debug(
     chat_model.script = ["Hello."]
     session_id = (await ask(client, headers, "Hi")).json()["session_id"]
     history = (await client.get(f"/api/sessions/{session_id}/messages", headers=headers)).json()
-    assert (await client.get(f"/api/messages/{history[0]['id']}/debug", headers=headers)).status_code == 404
+    assert (await client.get(f"/api/messages/{history['items'][0]['id']}/debug", headers=headers)).status_code == 404
 
 
 @pytest.mark.parametrize("query", ["", "   ", "x" * 2001])
@@ -510,3 +510,59 @@ async def test_an_unusable_query_is_rejected_before_any_model_call(
 async def test_every_route_needs_a_token(client: AsyncClient, method: str, path: str) -> None:
     response = await client.request(method, path, json={"query": "hi"} if method == "POST" else None)
     assert response.status_code == 401
+
+
+async def test_sessions_page_by_cursor_without_skipping_or_repeating(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("src.conversations.repository.SESSIONS_PAGE", 2)
+    created = []
+    for index in range(5):
+        chat_model.script = [f"Answer {index}."]
+        created.append((await ask(client, headers, f"Conversation {index}")).json()["session_id"])
+
+    seen: list[str] = []
+    cursor = None
+    while True:
+        params = {"cursor": cursor} if cursor else {}
+        page = (await client.get("/api/sessions", headers=headers, params=params)).json()
+        assert len(page["items"]) <= 2
+        seen += [session["id"] for session in page["items"]]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert [session_id for session_id in seen if session_id in created] == created[::-1]
+    assert len(seen) == len(set(seen))
+
+
+async def test_history_opens_on_the_latest_messages_and_reaches_back(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("src.conversations.repository.MESSAGES_PAGE", 3)
+    chat_model.script = ["One."]
+    session_id = (await ask(client, headers, "First")).json()["session_id"]
+    chat_model.script = ["Two."]
+    await ask(client, headers, "Second", session_id)
+    chat_model.script = ["Three."]
+    await ask(client, headers, "Third", session_id)
+
+    latest = (await client.get(f"/api/sessions/{session_id}/messages", headers=headers)).json()
+    assert [message["content"] for message in latest["items"]] == ["Two.", "Third", "Three."]
+    older = (
+        await client.get(
+            f"/api/sessions/{session_id}/messages", headers=headers, params={"cursor": latest["next_cursor"]}
+        )
+    ).json()
+    assert [message["content"] for message in older["items"]] == ["First", "One.", "Second"]
+    assert older["next_cursor"] is None
+
+
+@pytest.mark.parametrize("path", ["/api/sessions", "/api/sessions/{session_id}/messages"])
+async def test_a_cursor_the_api_did_not_issue_is_422(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel, path: str
+) -> None:
+    chat_model.script = ["One."]
+    session_id = (await ask(client, headers, "First")).json()["session_id"]
+    response = await client.get(path.format(session_id=session_id), headers=headers, params={"cursor": "%%%"})
+    assert response.status_code == 422

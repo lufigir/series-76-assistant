@@ -120,7 +120,7 @@ Each decision below has its options and consequences in [`docs/adr/`](docs/adr).
 
 **PostgreSQL is relational, without pgvector.** Users ask for exact part numbers and "at least" thresholds, and an embedding has no notion of either. Typos go through normalization and `difflib`, which can't return a part number outside the catalog (ADR 2).
 
-**History is stored twice, for two readers.** The `messages` table is what the app shows, and LangGraph's checkpointer is the agent's memory. One turn writes to both, so a failure in between can leave an agent remembering a turn the user was told failed. I accepted that over parsing LangGraph's internal format to draw a chat (ADR 3).
+**History is stored twice, for two readers.** The `messages` table is what the app shows, and LangGraph's checkpointer is the agent's memory. One turn writes to both, so a failure in between can leave an agent remembering a turn the user was told failed. We accepted that over parsing LangGraph's internal format to draw a chat (ADR 3).
 
 **The rules are pure modules.** Matching and part number handling in `actuators/matching.py` and `part_numbers.py` have table tests and no database. `import-linter` fails the build if a layer imports the wrong way, and a request holds no database connection during a model call.
 
@@ -201,7 +201,7 @@ Passwords are stored as Argon2 hashes. Login returns a JWT that lasts 12 hours, 
 
 The app records M4A, sends it to `POST /api/transcriptions` as the raw request body (WAV or M4A, up to 5 MB) and puts the returned text in the input box for the user to review before sending. The backend discards the audio. Reviewing matters because a part number heard wrong would get a confident answer about the wrong actuator.
 
-I compared engines on four phrases in English and Spanish, with a synthetic voice and one pass each. Whisper tiny and base on `sherpa-onnx` got part numbers wrong, and Gemini with the format described in its prompt got them exact (ADR 7). The sample is small and says nothing about a noisy plant floor.
+We compared engines on four phrases in English and Spanish, with a synthetic voice and one pass each. Whisper tiny and base on `sherpa-onnx` got part numbers wrong, and Gemini with the format described in its prompt got them exact (ADR 7). The sample is small and says nothing about a noisy plant floor.
 
 Pure digital silence, as from a muted microphone, made the model invent a part number. The app never sends a recording whose peak amplitude is 0, and the backend refuses a WAV of near-zero samples before any model call.
 

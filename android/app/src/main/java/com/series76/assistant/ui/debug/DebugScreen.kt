@@ -1,5 +1,23 @@
 package com.series76.assistant.ui.debug
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.series76.assistant.data.remote.ValidationTrace
+import com.series76.assistant.ui.components.IconBadge
+import com.series76.assistant.ui.components.SectionLabel
+import com.series76.assistant.ui.theme.SpecValueStyle
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +36,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -107,46 +124,134 @@ fun DebugScreen(uiState: DebugUiState, onRetry: () -> Unit, onBack: () -> Unit) 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DebugContent(debug: MessageDebug, padding: PaddingValues) {
     val trace = debug.trace
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Model: ${trace.model}")
-                    Text("Prompt: ${trace.promptVersion}")
-                    Text("Tokens: ${trace.inputTokens} in, ${trace.outputTokens} out")
-                    Text("Cost: ${trace.costUsd?.let { "USD $it" } ?: "not reported"}")
-                    Text("Latency: ${trace.latencyMs} ms, ${trace.modelCalls.size} model call(s)")
-                    Text("Validator retried: ${if (trace.validation.retried) "yes" else "no"}")
-                    Text("Answer from template: ${if (trace.validation.usedTemplate) "yes" else "no"}")
-                    if (trace.validation.rejected.isNotEmpty()) {
-                        Text("Numbers rejected: ${trace.validation.rejected.joinToString()}")
-                    }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(trace.model, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Prompt ${trace.promptVersion}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
+        item {
+            // Two tiles a row on a phone, more on a wider screen.
+            FlowRow(
+                maxItemsInEachRow = 2,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Metric("Latency", "${trace.latencyMs} ms", Modifier.weight(1f))
+                Metric("Cost", formatCost(trace.costUsd), Modifier.weight(1f))
+                Metric("Tokens in", "${trace.inputTokens}", Modifier.weight(1f))
+                Metric("Tokens out", "${trace.outputTokens}", Modifier.weight(1f))
+                Metric("Model calls", "${trace.modelCalls.size}", Modifier.weight(1f))
+                Metric("Tool calls", "${trace.tools.size}", Modifier.weight(1f))
+            }
+        }
+        item { Validation(trace.validation) }
+        item { SectionLabel("Tools", modifier = Modifier.padding(top = 8.dp)) }
         if (trace.tools.isEmpty()) {
-            item { Text("No tools were called for this answer.") }
+            item { Text("No tools were called for this answer.", style = MaterialTheme.typography.bodyMedium) }
         }
         items(trace.tools) { tool -> ToolCard(tool) }
     }
 }
 
 @Composable
+private fun Metric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier =
+            modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = SpecValueStyle.copy(fontSize = 18.sp, lineHeight = 24.sp))
+    }
+}
+
+@Composable
+private fun Validation(validation: ValidationTrace) {
+    val clean = !validation.retried && !validation.usedTemplate && validation.rejected.isEmpty()
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .background(if (clean) colors.primaryContainer else colors.tertiaryContainer, MaterialTheme.shapes.large)
+                .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            if (clean) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+            contentDescription = null,
+            tint = if (clean) colors.onPrimaryContainer else colors.onTertiaryContainer,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                if (clean) "Every number was backed by a tool result" else "The validator stepped in",
+                style = MaterialTheme.typography.titleSmall,
+                color = if (clean) colors.onPrimaryContainer else colors.onTertiaryContainer,
+            )
+            if (!clean) {
+                Text(
+                    "Retried: ${if (validation.retried) "yes" else "no"} · From template: " +
+                        if (validation.usedTemplate) "yes" else "no",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onTertiaryContainer,
+                )
+            }
+            if (validation.rejected.isNotEmpty()) {
+                Text(
+                    "Numbers rejected: ${validation.rejected.joinToString()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onTertiaryContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ToolCard(tool: ToolTrace) {
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("${tool.name} (${tool.latencyMs} ms)", style = MaterialTheme.typography.titleSmall)
+    var open by rememberSaveable { mutableStateOf(false) }
+    Surface(
+        onClick = { open = !open },
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBadge(Icons.Filled.Build, size = 36.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(tool.name, style = MaterialTheme.typography.titleSmall, fontFamily = FontFamily.Monospace)
+                    Text(
+                        "${tool.latencyMs} ms",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = if (open) "Hide parameters and data" else "Show parameters and data",
+                )
+            }
             Text("Parameters", style = MaterialTheme.typography.labelMedium)
             Code(pretty(tool.parameters))
-            Text("Returned", style = MaterialTheme.typography.labelMedium)
-            Code(pretty(tool.result))
+            if (open) {
+                Text("Returned", style = MaterialTheme.typography.labelMedium)
+                Code(pretty(tool.result))
+            }
         }
     }
 }

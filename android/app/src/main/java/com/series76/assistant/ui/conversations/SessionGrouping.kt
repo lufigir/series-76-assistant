@@ -10,10 +10,24 @@ import java.time.format.FormatStyle
 
 data class SessionGroup(val label: String, val sessions: List<SessionRow>)
 
-data class SessionRow(val id: String, val title: String, val time: String)
+data class SessionRow(
+    val id: String,
+    val title: String,
+    val time: String,
+    val preview: String? = null,
+    val partNumbers: List<String> = emptyList(),
+)
 
 private val TIME = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+private val WEEKDAY = DateTimeFormatter.ofPattern("EEE")
+private const val WEEK_DAYS = 7L
+private val WHITESPACE = Regex("\\s+")
+
+private const val TODAY = "Today"
+private const val YESTERDAY = "Yesterday"
+private const val PAST_WEEK = "Previous 7 days"
+private const val EARLIER = "Earlier"
 
 /** Groups by day in the order received, which the backend already sorts by most recent. */
 fun groupSessions(
@@ -32,20 +46,38 @@ fun groupSessions(
             val day = moment?.toLocalDate()
             val label =
                 when {
-                    day == null -> "Earlier"
-                    day == today -> "Today"
-                    day == today.minusDays(1) -> "Yesterday"
-                    else -> "Earlier"
+                    day == null -> EARLIER
+                    day == today -> TODAY
+                    day == today.minusDays(1) -> YESTERDAY
+                    day.isAfter(today.minusDays(WEEK_DAYS)) -> PAST_WEEK
+                    else -> EARLIER
                 }
             val time =
-                when {
-                    moment == null -> ""
-                    label == "Earlier" -> moment.format(DATE)
-                    else -> moment.format(TIME)
+                when (label) {
+                    TODAY, YESTERDAY -> moment?.format(TIME).orEmpty()
+                    PAST_WEEK -> moment?.format(WEEKDAY).orEmpty()
+                    else -> moment?.format(DATE).orEmpty()
                 }
-            label to SessionRow(session.id, session.title, time)
+            label to
+                SessionRow(
+                    id = session.id,
+                    title = session.title,
+                    time = time,
+                    preview = session.preview?.replace(WHITESPACE, " ")?.trim()?.ifEmpty { null },
+                    partNumbers = unnamed(session.partNumbers, session.title, session.preview),
+                )
         }
     return rows
         .groupBy({ it.first }, { it.second })
         .map { (label, grouped) -> SessionGroup(label, grouped) }
+}
+
+private val NOT_ALPHANUMERIC = Regex("[^0-9A-Za-z]")
+
+private fun compact(text: String) = text.replace(NOT_ALPHANUMERIC, "").uppercase()
+
+/** The part numbers the title and preview do not already show, however they were typed there. */
+private fun unnamed(partNumbers: List<String>, title: String, preview: String?): List<String> {
+    val shown = compact(title + " " + preview.orEmpty())
+    return partNumbers.filterNot { compact(it).removeSuffix("A") in shown }
 }

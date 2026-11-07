@@ -16,6 +16,8 @@ data class ConversationsUiState(
     val sessions: List<SessionSummary>? = null,
     val loading: Boolean = true,
     val error: String? = null,
+    val nextCursor: String? = null,
+    val loadingMore: Boolean = false,
 )
 
 class ConversationsViewModel(
@@ -25,13 +27,36 @@ class ConversationsViewModel(
     private val _uiState = MutableStateFlow(ConversationsUiState())
     val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
 
-    /** Keeps what is on screen while it refreshes, and if the refresh fails. */
+    /** Reloads the first page. Keeps what is on screen while it refreshes, and if the refresh fails. */
     fun load() {
         _uiState.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val result = conversations.sessions()) {
-                is ApiResult.Success -> _uiState.value = ConversationsUiState(result.value, loading = false)
+                is ApiResult.Success ->
+                    _uiState.value =
+                        ConversationsUiState(result.value.items, loading = false, nextCursor = result.value.nextCursor)
                 is ApiResult.Failure -> _uiState.update { it.copy(loading = false, error = result.message) }
+            }
+        }
+    }
+
+    /** Appends the next page. The list calls it as its end comes into view, so it ignores repeats while one loads. */
+    fun loadMore() {
+        val state = _uiState.value
+        val cursor = state.nextCursor ?: return
+        if (state.loading || state.loadingMore) return
+        _uiState.update { it.copy(loadingMore = true, error = null) }
+        viewModelScope.launch {
+            when (val result = conversations.sessions(cursor)) {
+                is ApiResult.Success ->
+                    _uiState.update {
+                        it.copy(
+                            sessions = it.sessions.orEmpty() + result.value.items,
+                            nextCursor = result.value.nextCursor,
+                            loadingMore = false,
+                        )
+                    }
+                is ApiResult.Failure -> _uiState.update { it.copy(loadingMore = false, error = result.message) }
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,14 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.res.painterResource
+import com.series76.assistant.R
+import com.series76.assistant.ui.components.IconBadge
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -68,10 +77,18 @@ import com.series76.assistant.ui.theme.SpecValueStyle
 
 private val LABEL_WIDTH = 124.dp
 
+// Condensed density, about 36 to 40 dp a row: Material's tables use 52, and dense views go down to 40. These rows are
+// read, not tapped, so they need no 48 dp touch target.
+private val ROW_PADDING = 3.dp
+private val PANEL_PADDING = 12.dp
+
 // Wide enough that another product runs off a phone's edge: the cut-off column is what says the table scrolls.
 private val COLUMN_WIDTH = 156.dp
 
-private val SPEC_TABLE_LABEL_WIDTH = 104.dp
+// The label column takes a share of the width rather than a fixed one, so "Torque (Nm)" stays on one line at large
+// text sizes instead of doubling the row's height.
+private const val LABEL_WEIGHT = 1.1f
+private const val PAIR_COLUMNS = 2f
 
 /** A set of models from one answer. How many there are decides how they read best on a phone. */
 @Composable
@@ -127,7 +144,22 @@ private fun ProductCard(product: ActuatorData, defaultUnit: TorqueDisplay, check
 
 @Composable
 private fun Identity(product: ActuatorData) {
-    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(
+        modifier = Modifier.padding(PANEL_PADDING),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconBadge(painterResource(enclosureIcon(product.enclosure)), size = 32.dp)
+        IdentityText(product)
+    }
+}
+
+private fun enclosureIcon(enclosure: String): Int =
+    if (enclosure == "explosionproof") R.drawable.ic_shield else R.drawable.ic_water_drop
+
+@Composable
+private fun IdentityText(product: ActuatorData) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(product.partNumber, style = PartNumberStyle)
         Text(
             "${enclosureLabel(product.enclosure)} · ${powerSupplyLabel(product.powerSupply)}",
@@ -148,14 +180,14 @@ private fun Identity(product: ActuatorData) {
 @Composable
 private fun ModelDetails(product: ActuatorData, unit: TorqueDisplay, checks: List<RequirementCheck>) {
     if (checks.isNotEmpty()) {
-        Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
+        Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, bottom = 10.dp)) {
             SectionLabel("Your requirements", modifier = Modifier.padding(bottom = 4.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             checks.forEach { check ->
                 val result = check.results.single()
                 Row(
                     modifier =
-                        Modifier.fillMaxWidth().padding(vertical = 6.dp).clearAndSetSemantics {
+                        Modifier.fillMaxWidth().padding(vertical = ROW_PADDING).clearAndSetSemantics {
                             contentDescription = "${check.label}: ${result.text}"
                         },
                     verticalAlignment = Alignment.CenterVertically,
@@ -166,6 +198,7 @@ private fun ModelDetails(product: ActuatorData, unit: TorqueDisplay, checks: Lis
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                     )
+                    CheckIcon(result.state)
                     Text(
                         result.text,
                         style = SpecValueStyle,
@@ -182,22 +215,37 @@ private fun ModelDetails(product: ActuatorData, unit: TorqueDisplay, checks: Lis
 private fun checkColor(state: CheckState): Color =
     when (state) {
         CheckState.UNMET -> MaterialTheme.colorScheme.tertiary
-        CheckState.MET -> MaterialTheme.colorScheme.onSurface
+        CheckState.MET -> MaterialTheme.colorScheme.primary
         CheckState.NOT_CHECKED -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+/** A shape as well as a color, so met and missed read apart without telling petrol from amber. */
+@Composable
+private fun CheckIcon(state: CheckState) {
+    val icon =
+        when (state) {
+            CheckState.MET -> Icons.Filled.CheckCircle
+            CheckState.UNMET -> Icons.Filled.Warning
+            CheckState.NOT_CHECKED -> return
+        }
+    Icon(icon, contentDescription = null, tint = checkColor(state), modifier = Modifier.padding(end = 6.dp).size(16.dp))
+}
+
 @Composable
 private fun SpecTableView(table: SpecTable) {
-    Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
+    Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, bottom = 10.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            Box(Modifier.width(SPEC_TABLE_LABEL_WIDTH))
+            Box(Modifier.weight(LABEL_WEIGHT))
             table.columns.forEach { column ->
+                // One line that shrinks to fit: at large text sizes "Modulating" would otherwise break mid-word.
                 Text(
                     column,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End,
-                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = MaterialTheme.typography.labelMedium.fontSize),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
             }
         }
@@ -207,7 +255,7 @@ private fun SpecTableView(table: SpecTable) {
             // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
             Row(
                 modifier =
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp).clearAndSetSemantics {
+                    Modifier.fillMaxWidth().padding(vertical = ROW_PADDING).clearAndSetSemantics {
                         contentDescription = spoken
                     },
                 verticalAlignment = Alignment.CenterVertically,
@@ -216,10 +264,10 @@ private fun SpecTableView(table: SpecTable) {
                     row.label,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(SPEC_TABLE_LABEL_WIDTH),
+                    modifier = Modifier.weight(LABEL_WEIGHT),
                 )
                 row.values.forEach { value ->
-                    Text(value, style = SpecValueStyle, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                    Text(value, style = SpecValueStyle, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 8.dp))
                 }
             }
         }
@@ -267,11 +315,22 @@ private fun ProductRow(product: ActuatorData, unit: TorqueDisplay, checks: List<
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().clickable { open = !open }.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable(onClickLabel = if (open) "Hide details" else "Show details") { open = !open }
+                    .padding(horizontal = PANEL_PADDING, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(product.partNumber, style = PartNumberStyle.copy(fontSize = 15.sp))
-            Text(summaryLine(product, unit), style = SpecValueStyle.copy(fontSize = 14.sp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(product.partNumber, style = PartNumberStyle.copy(fontSize = 15.sp), modifier = Modifier.weight(1f))
+                // Nothing else says the row opens, so the chevron does.
+                Icon(
+                    if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(summaryLine(product, unit), style = SpecValueStyle)
             if (misses.isNotEmpty()) {
                 Text(
                     "Misses " + misses.joinToString { it.label },
@@ -294,7 +353,7 @@ private fun ProductRow(product: ActuatorData, unit: TorqueDisplay, checks: List<
 @Composable
 private fun PanelHeader(title: String, unit: TorqueDisplay, onChange: (TorqueDisplay) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = PANEL_PADDING, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SectionLabel(title, modifier = Modifier.weight(1f))
@@ -415,9 +474,21 @@ private fun SheetSection(title: String) {
 @Composable
 private fun ModelHeader(partNumbers: List<String>, scroll: ScrollState, fit: ColumnFit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        RowLabel("Model")
+        RowLabel("Model", fit)
         val shown = if (fit == ColumnFit.EQUAL) partNumbers.map(::partNumberOnTwoLines) else partNumbers
-        Cells(shown, scroll, fit, PartNumberStyle.copy(fontSize = 13.sp, lineHeight = 17.sp))
+        val style = PartNumberStyle.copy(fontSize = 13.sp, lineHeight = 17.sp)
+        // Two lines at most, broken at the dash; at large text sizes the face shrinks rather than break mid-code.
+        ColumnsRow(scroll, fit) { cellModifier ->
+            shown.forEach { partNumber ->
+                Text(
+                    partNumber,
+                    style = style,
+                    maxLines = 2,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = style.fontSize),
+                    modifier = cellModifier(this),
+                )
+            }
+        }
     }
 }
 
@@ -425,7 +496,7 @@ private fun ModelHeader(partNumbers: List<String>, scroll: ScrollState, fit: Col
 private fun CheckRow(check: RequirementCheck, partNumbers: List<String>, scroll: ScrollState, fit: ColumnFit) {
     val spoken = check.label + ": " + partNumbers.zip(check.results).joinToString(", ") { (part, r) -> "$part, ${r.text}" }
     Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }) {
-        RowLabel(check.label)
+        RowLabel(check.label, fit)
         ColumnsRow(scroll, fit) { cellModifier ->
             check.results.forEach { result ->
                 Text(result.text, style = SpecValueStyle, color = checkColor(result.state), modifier = cellModifier(this))
@@ -439,7 +510,9 @@ private fun DataPanel(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier =
             Modifier.fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.large)
                 .animateContentSize(),
     ) {
         content()
@@ -490,17 +563,20 @@ private fun ExpandRow(text: String, onToggle: () -> Unit) {
         text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(14.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = PANEL_PADDING, vertical = 12.dp),
     )
 }
 
 @Composable
-private fun RowLabel(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+private fun RowScope.RowLabel(text: String, fit: ColumnFit, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    // Columns that share the width let the label share it too, so large text wraps it less. Scrolling columns need a
+    // fixed label, which stays put while they move.
+    val width = if (fit == ColumnFit.EQUAL) Modifier.weight(LABEL_WEIGHT) else Modifier.width(LABEL_WIDTH)
     Text(
         text,
         style = MaterialTheme.typography.bodySmall,
         color = color,
-        modifier = Modifier.width(LABEL_WIDTH).padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier = width.padding(horizontal = PANEL_PADDING, vertical = 5.dp),
     )
 }
 
@@ -514,7 +590,7 @@ private fun ValueRow(row: SpecRow, partNumbers: List<String>, scroll: ScrollStat
         }
     // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
     Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }) {
-        RowLabel(row.label)
+        RowLabel(row.label, fit)
         Cells(row.values, scroll, fit, SpecValueStyle)
     }
 }
@@ -523,24 +599,25 @@ private fun ValueRow(row: SpecRow, partNumbers: List<String>, scroll: ScrollStat
 private enum class ColumnFit { EQUAL, SCROLL, CONTENT }
 
 @Composable
-private fun Cells(values: List<String>, scroll: ScrollState, fit: ColumnFit, style: TextStyle) {
+private fun RowScope.Cells(values: List<String>, scroll: ScrollState, fit: ColumnFit, style: TextStyle) {
     ColumnsRow(scroll, fit) { cellModifier ->
         values.forEach { value -> Text(value, style = style, modifier = cellModifier(this)) }
     }
 }
 
 @Composable
-private fun ColumnsRow(
+private fun RowScope.ColumnsRow(
     scroll: ScrollState,
     fit: ColumnFit,
     content: @Composable RowScope.(cellModifier: RowScope.() -> Modifier) -> Unit,
 ) {
-    val padded = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+    val padded = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
     if (fit == ColumnFit.EQUAL) {
-        Row(modifier = Modifier.fillMaxWidth()) { content { Modifier.weight(1f).then(padded) } }
+        // Weighted against the label, one share per model, so label and values divide the width between them.
+        Row(modifier = Modifier.weight(PAIR_COLUMNS)) { content { Modifier.weight(1f).then(padded) } }
     } else {
         // Every row shares one scroll state, so a swipe on any row moves all the columns together.
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.weight(1f)) {
             Row(modifier = Modifier.horizontalScroll(scroll)) {
                 content { if (fit == ColumnFit.SCROLL) Modifier.width(COLUMN_WIDTH).then(padded) else padded }
             }

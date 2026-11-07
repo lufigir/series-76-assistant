@@ -15,7 +15,25 @@ data class TokenResponse(val token: String)
 data class ApiErrorBody(val message: String)
 
 @Serializable
-data class SessionSummary(val id: String, val title: String, val date: String)
+data class SessionSummary(
+    val id: String,
+    val title: String,
+    val date: String,
+    val preview: String? = null,
+    @SerialName("part_numbers") val partNumbers: List<String> = emptyList(),
+)
+
+/** A catalog row: enough to complete and build part numbers in the app, without the ratings. */
+@Serializable
+data class CatalogEntry(
+    @SerialName("part_number") val partNumber: String,
+    val enclosure: String,
+    @SerialName("power_supply") val powerSupply: String,
+)
+
+/** One page of a list. Passing nextCursor back fetches the following page; it is null on the last one. */
+@Serializable
+data class Page<T>(val items: List<T>, @SerialName("next_cursor") val nextCursor: String? = null)
 
 /** The backend rejects a longer query with a 422, so the app stops the draft here instead. */
 const val MAX_QUERY_LENGTH = 2000
@@ -52,6 +70,7 @@ data class MessageView(
     val matches: List<String> = emptyList(),
     @SerialName("follow_ups") val followUps: List<String> = emptyList(),
     val requirements: Requirements? = null,
+    @SerialName("created_at") val createdAt: String? = null,
 )
 
 @Serializable

@@ -104,7 +104,7 @@ An emulator reaches the backend at `http://10.0.2.2:8000/`, which is the default
 ./gradlew installLocal -PbackendUrl=http://192.168.1.20:8000/
 ```
 
-Log in with a test user. **To open the debug screen, press and hold an answer.** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. No button or hint shows the gesture, so end users won't find it by accident.
+Log in with a test user. **To open the debug screen, press and hold an answer and pick "Technical details".** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. The same menu copies the answer. No button or hint shows the gesture, so end users won't land on the debug screen by accident.
 
 ## Design and architecture
 

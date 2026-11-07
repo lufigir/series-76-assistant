@@ -1,13 +1,16 @@
 package com.series76.assistant.ui.chat
 
 import androidx.lifecycle.SavedStateHandle
+import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.conversation.ConversationRepository
+import com.series76.assistant.data.remote.CatalogEntry
 import com.series76.assistant.data.remote.ConversationRequest
 import com.series76.assistant.data.remote.ConversationResponse
 import com.series76.assistant.data.remote.LoginRequest
 import com.series76.assistant.data.remote.MAX_QUERY_LENGTH
 import com.series76.assistant.data.remote.MessageDebug
 import com.series76.assistant.data.remote.MessageView
+import com.series76.assistant.data.remote.Page
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.data.remote.Series76Api
 import com.series76.assistant.data.remote.SessionSummary
@@ -39,12 +42,15 @@ private class FakeApi : Series76Api {
     var failSend = false
     var failTranscribe = false
     var history = emptyList<MessageView>()
+    var older = emptyList<MessageView>()
+    var olderCursor: String? = null
 
     override suspend fun login(request: LoginRequest) = TokenResponse("token")
 
-    override suspend fun sessions() = emptyList<SessionSummary>()
+    override suspend fun sessions(cursor: String?) = Page(emptyList<SessionSummary>())
 
-    override suspend fun messages(sessionId: String) = history
+    override suspend fun messages(sessionId: String, cursor: String?) =
+        if (cursor == null) Page(history, olderCursor) else Page(older)
 
     override suspend fun converse(request: ConversationRequest): ConversationResponse {
         sent += request
@@ -62,6 +68,8 @@ private class FakeApi : Series76Api {
     }
 
     override suspend fun debug(messageId: String): MessageDebug = throw NotImplementedError()
+
+    override suspend fun catalog() = listOf(CatalogEntry("763A00-11320000/A", "weatherproof", "220v_single_phase"))
 
     override suspend fun transcribe(audio: RequestBody): TranscriptionResponse {
         if (failTranscribe) throw IOException()
@@ -97,7 +105,7 @@ class ChatViewModelTest {
         session: String? = null,
         saved: SavedStateHandle = SavedStateHandle(),
         recorder: AudioRecorder = FakeRecorder(recordingFile()),
-    ) = ChatViewModel(saved, session, repository, VoiceRepository(recorder, api, json))
+    ) = ChatViewModel(saved, session, repository, VoiceRepository(recorder, api, json), CatalogRepository(api, json))
 
     private fun ChatViewModel.ask(text: String) {
         updateDraft(text)
@@ -194,5 +202,16 @@ class ChatViewModelTest {
         val chat = viewModel(session = "session-1")
         assertEquals(listOf(true, false), chat.uiState.value.messages.map { it.fromUser })
         assertEquals("weatherproof", chat.uiState.value.requirements?.enclosure)
+    }
+
+    @Test
+    fun `older messages go on top and the cursor moves back`() {
+        api.history = listOf(MessageView("3", "user", "Third"), MessageView("4", "assistant", "Fourth"))
+        api.older = listOf(MessageView("1", "user", "First"), MessageView("2", "assistant", "Second"))
+        api.olderCursor = "older"
+        val chat = viewModel(session = "session-1")
+        chat.loadOlder()
+        assertEquals(listOf("First", "Second", "Third", "Fourth"), chat.uiState.value.messages.map { it.text })
+        assertNull(chat.uiState.value.olderCursor)
     }
 }

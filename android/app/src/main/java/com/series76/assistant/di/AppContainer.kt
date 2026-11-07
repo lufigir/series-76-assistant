@@ -5,6 +5,7 @@ import com.series76.assistant.BuildConfig
 import com.series76.assistant.data.auth.AuthRepository
 import com.series76.assistant.data.auth.TokenSource
 import com.series76.assistant.data.auth.TokenStore
+import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.Series76Api
 import com.series76.assistant.data.voice.MediaAudioRecorder
@@ -56,6 +57,7 @@ class AppContainer(context: Context) {
 
     val authRepository = AuthRepository(api, tokenStore, json)
     val conversationRepository = ConversationRepository(api, json)
+    val catalogRepository = CatalogRepository(api, json)
     val voiceRepository = VoiceRepository(MediaAudioRecorder(context), api, json)
 }
 

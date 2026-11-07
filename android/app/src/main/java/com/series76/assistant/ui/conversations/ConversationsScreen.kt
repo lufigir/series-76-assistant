@@ -1,6 +1,6 @@
 package com.series76.assistant.ui.conversations
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,16 +10,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -34,12 +42,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.series76.assistant.data.remote.SessionSummary
-import com.series76.assistant.ui.components.SectionLabel
+import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.components.EmptyState
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
+import com.series76.assistant.ui.components.SectionLabel
+import com.series76.assistant.ui.theme.PartNumberStyle
 import com.series76.assistant.ui.theme.Series76Theme
 
 @Composable
@@ -47,7 +58,14 @@ fun ConversationsRoute(viewModel: ConversationsViewModel, onOpen: (String) -> Un
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Runs each time this screen returns from a chat, whose new turns change the list.
     LaunchedEffect(Unit) { viewModel.load() }
-    ConversationsScreen(uiState, onOpen, onNew, onRefresh = viewModel::load, onSignOut = viewModel::signOut)
+    ConversationsScreen(
+        uiState,
+        onOpen,
+        onNew,
+        onRefresh = viewModel::load,
+        onLoadMore = viewModel::loadMore,
+        onSignOut = viewModel::signOut,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,17 +75,31 @@ fun ConversationsScreen(
     onOpen: (String) -> Unit,
     onNew: () -> Unit,
     onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("Conversations") },
-                    actions = { TextButton(onClick = onSignOut) { Text("Sign out") } },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BrandMark(size = 34.dp)
+                        Column {
+                            Text("Series 76", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Actuator assistant",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onSignOut) {
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign out")
+                    }
+                },
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -76,7 +108,7 @@ fun ConversationsScreen(
                 text = { Text("New conversation") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier.semantics { contentDescription = "New conversation" },
             )
         },
@@ -97,7 +129,7 @@ fun ConversationsScreen(
                         detail = "Ask about a part number, or describe the actuator you need.",
                         contentPadding = padding,
                     )
-                else -> SessionList(sessions, uiState.error, onOpen, padding)
+                else -> SessionList(sessions, uiState.error, uiState.loadingMore, onOpen, onLoadMore, padding)
             }
         }
     }
@@ -107,14 +139,28 @@ fun ConversationsScreen(
 private fun SessionList(
     sessions: List<SessionSummary>,
     error: String?,
+    loadingMore: Boolean,
     onOpen: (String) -> Unit,
+    onLoadMore: () -> Unit,
     padding: PaddingValues,
 ) {
     val groups = remember(sessions) { groupSessions(sessions) }
+    val listState = rememberLazyListState()
+    // Asks for the next page a few rows before the end, so it usually arrives before the reader gets there.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            (layout.visibleItemsInfo.lastOrNull()?.index ?: 0) >= layout.totalItemsCount - PREFETCH_ROWS
+        }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect { onLoadMore() }
+    }
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        // The bottom leaves room so the button never covers the last conversation.
-        contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = 96.dp),
+        state = listState,
+        modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
+        // The bottom clears the navigation bar and the button, so neither covers the last conversation.
+        contentPadding = PaddingValues(bottom = padding.calculateBottomPadding() + 88.dp),
     ) {
         error?.let { message ->
             item {
@@ -127,43 +173,96 @@ private fun SessionList(
             }
         }
         groups.forEach { group ->
-            item(key = group.label) {
-                SectionLabel(
-                    group.label,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp)
-                        .semantics { heading() },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            // Pinned while its conversations scroll under it, so the reader always knows which day they are in.
+            stickyHeader(key = group.label, contentType = "day") {
+                Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    SectionLabel(
+                        group.label,
+                        modifier =
+                            Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp).semantics { heading() },
+                    )
+                }
             }
-            items(group.sessions, key = { it.id }) { session ->
+            items(group.sessions, key = { it.id }, contentType = { "session" }) { session ->
                 SessionItem(session, onClick = { onOpen(session.id) }, modifier = Modifier.animateItem())
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+        if (loadingMore) {
+            item(key = "more", contentType = "more") {
+                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
             }
         }
     }
 }
 
+private const val PREFETCH_ROWS = 5
+
 @Composable
 private fun SessionItem(session: SessionRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.Top,
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    session.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    session.time,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            session.preview?.let { preview ->
+                Text(
+                    preview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (session.partNumbers.isNotEmpty()) PartNumberTags(session.partNumbers)
+        }
+    }
+}
+
+/** One line at most: the first part number, then how many more, since a wrapped list would outgrow the preview. */
+@Composable
+private fun PartNumberTags(partNumbers: List<String>) {
+    Row(
+        modifier = Modifier.padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            partNumbers.first(),
+            style = PartNumberStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 1,
+            modifier =
+                Modifier.background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.small)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+        if (partNumbers.size > 1) {
             Text(
-                session.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                "+${partNumbers.size - 1}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            session.time,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 3.dp),
-        )
     }
 }
 
@@ -176,7 +275,13 @@ private fun ConversationsPreview() {
                 ConversationsUiState(
                     sessions =
                         listOf(
-                            SessionSummary("1", "Torque of 765B00-11300000/A in Nm?", "2026-11-03T10:15:00+00:00"),
+                            SessionSummary(
+                                "1",
+                                "Torque of 765B00-11300000/A in Nm?",
+                                "2026-11-03T10:15:00+00:00",
+                                preview = "The 765B00-11300000/A is weatherproof, on 110 V single phase.",
+                                partNumbers = listOf("765B00-11300000/A"),
+                            ),
                             SessionSummary("2", "Explosionproof at 24 V", "2026-10-30T08:00:00+00:00"),
                         ),
                     loading = false,
@@ -184,6 +289,7 @@ private fun ConversationsPreview() {
             onOpen = {},
             onNew = {},
             onRefresh = {},
+            onLoadMore = {},
             onSignOut = {},
         )
     }

@@ -124,6 +124,7 @@ private fun SignedInNavigation(container: AppContainer) {
                                                 key.sessionId,
                                                 container.conversationRepository,
                                                 container.voiceRepository,
+                                                container.catalogRepository,
                                             )
                                         }
                                     },

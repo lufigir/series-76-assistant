@@ -9,6 +9,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Surface
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.series76.assistant.R
+import com.series76.assistant.ui.components.BrandMark
+import com.series76.assistant.ui.components.IconBadge
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
@@ -38,9 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +73,8 @@ import kotlinx.coroutines.launch
 private const val USER_ITEM = "user"
 private const val ASSISTANT_ITEM = "assistant"
 private const val WORKING_ITEM = "working"
+private const val DAY_ITEM = "day"
+private const val OLDER_PREFETCH_ROWS = 3
 
 @Composable
 fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String) -> Unit) {
@@ -77,6 +90,7 @@ fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String
         onSuggestion = viewModel::sendSuggestion,
         onRetrySend = viewModel::retry,
         onRetryHistory = viewModel::loadHistory,
+        onLoadOlder = viewModel::loadOlder,
         onToggleRecording = viewModel::toggleRecording,
         onCancelRecording = viewModel::cancelRecording,
         onMicDenied = viewModel::onMicDenied,
@@ -95,6 +109,7 @@ fun ChatScreen(
     onSuggestion: (String) -> Unit,
     onRetrySend: (ChatMessage) -> Unit,
     onRetryHistory: () -> Unit,
+    onLoadOlder: () -> Unit,
     onToggleRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onMicDenied: () -> Unit,
@@ -103,17 +118,29 @@ fun ChatScreen(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val itemCount = uiState.messages.size + if (uiState.sending) 1 else 0
+    val days = remember(uiState.messages) { chatDays(uiState.messages) }
+    // Each day adds its header to the list, so the last index counts them too.
+    val itemCount = uiState.messages.size + days.size + if (uiState.sending) 1 else 0
 
+    // What sits at the bottom. Older pages land on top without changing it, so loading them never scrolls the reader.
+    val tail = "${uiState.messages.lastOrNull()?.id}:${uiState.sending}"
     // Saved, so that coming back from the debug screen or a rotation keeps the reader's place instead of jumping.
-    var placedItems by rememberSaveable { mutableIntStateOf(0) }
+    var placedTail by rememberSaveable { mutableStateOf<String?>(null) }
     // Aligns the newest item's top, so a long table opens at its answer and not at its last row. History jumps there
     // at once, because scrolling through a whole conversation on opening it only looks like the screen is lost.
-    LaunchedEffect(itemCount) {
-        if (itemCount > 0 && itemCount != placedItems) {
-            if (placedItems == 0) listState.scrollToItem(itemCount - 1) else listState.animateScrollToItem(itemCount - 1)
+    LaunchedEffect(tail) {
+        if (itemCount > 0 && tail != placedTail) {
+            if (placedTail == null) listState.scrollToItem(itemCount - 1) else listState.animateScrollToItem(itemCount - 1)
         }
-        placedItems = itemCount
+        if (itemCount > 0) placedTail = tail
+    }
+    // Asks for the page before a few rows ahead of the top. LazyColumn keeps the first visible row in place by its key
+    // when rows are added above it, so the reader stays where they were.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.totalItemsCount > 0 && listState.firstVisibleItemIndex < OLDER_PREFETCH_ROWS }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect { onLoadOlder() }
     }
     // A long answer can fill the screen by itself, and being inside it is not being behind.
     val canJump by remember {
@@ -171,22 +198,27 @@ fun ChatScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
-                            items(
-                                uiState.messages,
-                                key = { it.id },
-                                contentType = { if (it.fromUser) USER_ITEM else ASSISTANT_ITEM },
-                            ) { message ->
-                                Box(Modifier.animateItem()) {
-                                    if (message.fromUser) {
-                                        UserMessage(message, onRetry = { onRetrySend(message) })
-                                    } else {
-                                        AssistantMessage(
-                                            message = message,
-                                            unit = preferredUnit(uiState.requirements),
-                                            isLatest = !uiState.sending && message === uiState.messages.last(),
-                                            onSuggestion = onSuggestion,
-                                            onOpenDebug = { onOpenDebug(message.id) },
-                                        )
+                            days.forEach { day ->
+                                // Not pinned: a pinned label would sit on top of the answer being read, and most conversations
+                                // span a single day.
+                                item(key = "day-${day.label}", contentType = DAY_ITEM) { DayHeader(day.label) }
+                                items(
+                                    day.messages,
+                                    key = { it.id },
+                                    contentType = { if (it.fromUser) USER_ITEM else ASSISTANT_ITEM },
+                                ) { message ->
+                                    Box(Modifier.animateItem()) {
+                                        if (message.fromUser) {
+                                            UserMessage(message, onRetry = { onRetrySend(message) })
+                                        } else {
+                                            AssistantMessage(
+                                                message = message,
+                                                unit = preferredUnit(uiState.requirements),
+                                                isLatest = !uiState.sending && message === uiState.messages.last(),
+                                                onSuggestion = onSuggestion,
+                                                onOpenDebug = { onOpenDebug(message.id) },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -197,6 +229,10 @@ fun ChatScreen(
                             }
                         }
                 }
+                // A bar over the list and not a row in it: a row on top would become the anchor and push the page down.
+                if (uiState.loadingOlder) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                }
                 JumpToLatest(
                     visible = canJump && uiState.messages.isNotEmpty(),
                     onClick = { scope.launch { listState.animateScrollToItem(itemCount - 1) } },
@@ -204,6 +240,21 @@ fun ChatScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DayHeader(label: String) {
+    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier =
+                Modifier.semantics { heading() }
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+        )
     }
 }
 
@@ -246,36 +297,56 @@ private fun RequirementsStrip(chips: List<String>) {
     }
 }
 
-private data class Starter(val task: String, val query: String)
+private data class Starter(val task: String, val query: String, val icon: Int)
 
 private val STARTERS =
     listOf(
-        Starter("Look up a part number", "What is the torque of 761A00-11300000/A?"),
-        Starter("Find a model", "Explosionproof at 220 V, modulating, with at least 500 Nm"),
-        Starter("Compare", "The 110 V weatherproof models above 1000 Nm"),
+        Starter("Look up a part number", "What is the torque of 761A00-11300000/A?", R.drawable.ic_search),
+        Starter("Find a model", "Explosionproof at 220 V, modulating, with at least 500 Nm", R.drawable.ic_actuator),
+        Starter("Compare", "The 110 V weatherproof models above 1000 Nm", R.drawable.ic_compare),
     )
 
 @Composable
 private fun StartPanel(onPick: (String) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        BrandMark(size = 48.dp)
+        Text(
+            "What do you need to know?",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
         Text(
             "Ask by part number or by requirements. Every figure comes from the Series 76 data tables.",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 20.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 10.dp),
         )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         STARTERS.forEach { starter ->
-            Column(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clickable { onPick(starter.query) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Surface(
+                onClick = { onPick(starter.query) },
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                SectionLabel(starter.task)
-                Text(starter.query, style = MaterialTheme.typography.bodyMedium)
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBadge(painterResource(starter.icon))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(starter.task, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            starter.query,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -321,6 +392,7 @@ private fun ChatPreview() {
             onSuggestion = {},
             onRetrySend = {},
             onRetryHistory = {},
+            onLoadOlder = {},
             onToggleRecording = {},
             onCancelRecording = {},
             onMicDenied = {},

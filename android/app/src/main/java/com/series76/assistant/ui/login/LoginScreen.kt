@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.theme.Series76Theme
 
 @Composable
@@ -61,10 +62,13 @@ fun LoginScreen(uiState: LoginUiState, onSubmit: (String, String) -> Unit) {
                 modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 88.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                BrandMark(size = 56.dp)
+                Spacer(Modifier.height(4.dp))
                 Text("Series 76", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    "Sign in to look up electric actuator data.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Find the right electric actuator by part number or by requirements, with every figure taken " +
+                        "from the data tables.",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))

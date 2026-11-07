@@ -44,13 +44,15 @@ private class FakeTokens : TokenSource {
 private class LoginOnlyApi : Series76Api {
     override suspend fun login(request: LoginRequest) = TokenResponse("token")
 
-    override suspend fun sessions() = throw NotImplementedError()
+    override suspend fun sessions(cursor: String?): Nothing = throw NotImplementedError()
 
-    override suspend fun messages(sessionId: String) = throw NotImplementedError()
+    override suspend fun messages(sessionId: String, cursor: String?): Nothing = throw NotImplementedError()
 
     override suspend fun converse(request: ConversationRequest) = throw NotImplementedError()
 
     override suspend fun debug(messageId: String) = throw NotImplementedError()
+
+    override suspend fun catalog(): Nothing = throw NotImplementedError()
 
     override suspend fun transcribe(audio: RequestBody) = throw NotImplementedError()
 }

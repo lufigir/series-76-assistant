@@ -5,6 +5,7 @@ import com.series76.assistant.data.remote.ConversationRequest
 import com.series76.assistant.data.remote.ConversationResponse
 import com.series76.assistant.data.remote.MessageDebug
 import com.series76.assistant.data.remote.MessageView
+import com.series76.assistant.data.remote.Page
 import com.series76.assistant.data.remote.Series76Api
 import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.data.remote.apiCall
@@ -14,10 +15,11 @@ class ConversationRepository(
     private val api: Series76Api,
     private val json: Json,
 ) {
-    suspend fun sessions(): ApiResult<List<SessionSummary>> = apiCall(json) { api.sessions() }
+    suspend fun sessions(cursor: String? = null): ApiResult<Page<SessionSummary>> =
+        apiCall(json) { api.sessions(cursor) }
 
-    suspend fun messages(sessionId: String): ApiResult<List<MessageView>> =
-        apiCall(json) { api.messages(sessionId) }
+    suspend fun messages(sessionId: String, cursor: String? = null): ApiResult<Page<MessageView>> =
+        apiCall(json) { api.messages(sessionId, cursor) }
 
     suspend fun send(sessionId: String?, query: String): ApiResult<ConversationResponse> =
         apiCall(json) { api.converse(ConversationRequest(sessionId, query)) }

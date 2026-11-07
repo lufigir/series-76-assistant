@@ -6,15 +6,18 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.ApiResult
 import com.series76.assistant.data.remote.Candidate
+import com.series76.assistant.data.remote.CatalogEntry
 import com.series76.assistant.data.remote.ConversationResponse
 import com.series76.assistant.data.remote.MAX_QUERY_LENGTH
 import com.series76.assistant.data.remote.MessageView
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.data.voice.VoiceRepository
+import java.time.OffsetDateTime
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +37,7 @@ data class ChatMessage(
     val followUps: List<String> = emptyList(),
     val requirements: Requirements? = null,
     val error: String? = null,
+    val createdAt: String? = null,
 )
 
 enum class VoiceState { IDLE, RECORDING, TRANSCRIBING }
@@ -46,6 +50,10 @@ data class ChatUiState(
     val sending: Boolean = false,
     val voice: VoiceState = VoiceState.IDLE,
     val voiceError: String? = null,
+    val olderCursor: String? = null,
+    val loadingOlder: Boolean = false,
+    // Empty until it loads, or if it fails: the part number aids then stay hidden and typing works as before.
+    val catalog: List<CatalogEntry> = emptyList(),
 )
 
 class ChatViewModel(
@@ -53,6 +61,7 @@ class ChatViewModel(
     openedSessionId: String?,
     private val conversations: ConversationRepository,
     private val voice: VoiceRepository,
+    private val catalog: CatalogRepository,
 ) : ViewModel() {
     // A new chat learns its id from the first answer, and it has to survive the process dying after that.
     private var sessionId: String?
@@ -72,6 +81,9 @@ class ChatViewModel(
     init {
         if (sessionId == null) sessionId = openedSessionId
         if (sessionId != null) loadHistory()
+        viewModelScope.launch {
+            (catalog.catalog() as? ApiResult.Success)?.let { result -> _uiState.update { it.copy(catalog = result.value) } }
+        }
     }
 
     fun loadHistory() {
@@ -83,12 +95,37 @@ class ChatViewModel(
                     _uiState.update { state ->
                         state.copy(
                             loadingHistory = false,
-                            messages = result.value.map(::toChatMessage),
-                            requirements = result.value.lastOrNull { it.requirements != null }?.requirements,
+                            messages = result.value.items.map(::toChatMessage),
+                            // The latest page always holds the latest answer, which carries the current requirements.
+                            requirements = result.value.items.lastOrNull { it.requirements != null }?.requirements,
+                            olderCursor = result.value.nextCursor,
                         )
                     }
                 is ApiResult.Failure ->
                     _uiState.update { it.copy(loadingHistory = false, historyError = result.message) }
+            }
+        }
+    }
+
+    /** Puts the page before the oldest message on top. The list calls it as its top comes into view. */
+    fun loadOlder() {
+        val id = sessionId ?: return
+        val state = _uiState.value
+        val cursor = state.olderCursor ?: return
+        if (state.loadingHistory || state.loadingOlder) return
+        _uiState.update { it.copy(loadingOlder = true) }
+        viewModelScope.launch {
+            when (val result = conversations.messages(id, cursor)) {
+                is ApiResult.Success ->
+                    _uiState.update { state ->
+                        state.copy(
+                            loadingOlder = false,
+                            messages = result.value.items.map(::toChatMessage) + state.messages,
+                            olderCursor = result.value.nextCursor,
+                        )
+                    }
+                // The cursor stays, so scrolling back to the top tries again.
+                is ApiResult.Failure -> _uiState.update { it.copy(loadingOlder = false) }
             }
         }
     }
@@ -105,12 +142,12 @@ class ChatViewModel(
         val query = draft.trim()
         if (query.isEmpty() || _uiState.value.sending) return
         updateDraft("")
-        send(ChatMessage(id = UUID.randomUUID().toString(), fromUser = true, text = query))
+        send(ChatMessage(id = UUID.randomUUID().toString(), fromUser = true, text = query, createdAt = now()))
     }
 
     fun sendSuggestion(text: String) {
         if (_uiState.value.sending) return
-        send(ChatMessage(id = UUID.randomUUID().toString(), fromUser = true, text = text))
+        send(ChatMessage(id = UUID.randomUUID().toString(), fromUser = true, text = text, createdAt = now()))
     }
 
     /** Only ever runs on a tap: repeating a POST by itself could ask the model twice for one question. */
@@ -210,6 +247,7 @@ class ChatViewModel(
             matches = message.matches,
             followUps = message.followUps,
             requirements = message.requirements,
+            createdAt = message.createdAt,
         )
 
     private fun toChatMessage(response: ConversationResponse) =
@@ -224,7 +262,10 @@ class ChatViewModel(
             matches = response.matches,
             followUps = response.followUps,
             requirements = response.requirements,
+            createdAt = now(),
         )
+
+    private fun now() = OffsetDateTime.now().toString()
 
     private companion object {
         const val SESSION_ID = "session_id"

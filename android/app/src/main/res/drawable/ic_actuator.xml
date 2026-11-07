@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An electric actuator on a valve: the motor housing, its stem, and the pipe it turns. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M6,2h12a2,2 0,0 1,2 2v5a2,2 0,0 1,-2 2H6a2,2 0,0 1,-2 -2V4a2,2 0,0 1,2 -2zM8,5v3h2V5zM11,5v3h2V5zM14,5v3h2V5zM10.5,11h3v3h-3zM7,14h10v2h4v5H3v-5h4z" />
+</vector>

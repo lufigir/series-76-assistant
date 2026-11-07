@@ -18,7 +18,7 @@ The guidance agrees on layers rather than one number: a short per-user rate limi
 
 A cap of 60 turns a minute per user, across conversations, counted when each turn starts in `turn_starts`, so turns running in parallel count. Past it the API answers 429 with `Retry-After: 60`. The key's own limit is the global cap on spend.
 
-60 comes from use, not from a source. A person types a few questions a minute, and an evaluator's script running cases one after another reaches about 20, at 3 seconds a turn. The first version allowed 10, which would have answered that script with 429s. At about USD 0.0003 a turn, a client held at the cap spends about USD 1 an hour.
+60 comes from use, not from a source. A person types a few questions a minute, and an evaluator's script running cases one after another reaches about 20, at 3 seconds a turn. The first version allowed 10, which would have answered that script with 429s. A turn costs about USD 0.0003 early in a conversation and up to USD 0.005 thirteen turns in, because each turn resends the history with its tool results. A client held at the cap spends between USD 1 and 18 an hour, so on the assessment's key the USD 10 limit is what stops a long run.
 
 ## Consequences
 

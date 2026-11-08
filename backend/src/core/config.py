@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     llm_provider: Literal["openrouter", "google"] = "openrouter"
     llm_model: str = "deepseek/deepseek-v4.1-flash"
     transcription_model: str = "google/gemini-3.1-flash-lite"
-    llm_max_output_tokens: int = Field(default=800, gt=0)
+    # Reasoning models spend part of this on thinking they always do, whatever the request asks: deepseek used up 800
+    # twice on a request no model could meet and returned an empty answer. Answers themselves run near 200 tokens.
+    llm_max_output_tokens: int = Field(default=2000, gt=0)
     llm_timeout_seconds: int = Field(default=30, gt=0)
     turn_timeout_seconds: int = Field(default=75, gt=0)
     # A guard against bursts and runaway loops, high enough for an evaluator's test script (ADR 9).

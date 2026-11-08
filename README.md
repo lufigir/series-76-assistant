@@ -140,7 +140,7 @@ The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS
 | LLM07 System prompt leakage | The prompt holds no secrets, so leaking it costs nothing |
 | LLM08 Vector and embedding weaknesses | No embeddings (ADR 2) |
 | LLM09 Misinformation | The number validator and the template fallback (ADR 5) |
-| LLM10 Unbounded consumption | Each turn has limits (calls, 800 output tokens, 2,000 characters, 75 s) and one turn at a time per conversation. Across conversations, a user gets 60 turns a minute (`TURNS_PER_MINUTE`), counted when each turn starts, then a 429. The key's own USD limit caps the spend (ADR 9) |
+| LLM10 Unbounded consumption | Each turn has limits (calls, 2,000 output tokens, 2,000 characters, 75 s) and one turn at a time per conversation. Across conversations, a user gets 60 turns a minute (`TURNS_PER_MINUTE`), counted when each turn starts, then a 429. The key's own USD limit caps the spend (ADR 9) |
 
 ### The app
 

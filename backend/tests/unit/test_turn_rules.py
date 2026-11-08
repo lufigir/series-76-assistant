@@ -169,6 +169,12 @@ def test_the_template_follows_the_language_of_the_query(query: str, expected: st
     assert expected in fallback_answer(query, [_lookup("found", actuator)], [])
 
 
+def test_the_template_names_services_in_words(actuator: ActuatorData) -> None:
+    answer = fallback_answer("torque?", [_lookup("found", actuator)], [])
+    assert "on_off" not in answer
+    assert "on/off" in answer
+
+
 def test_the_template_warns_about_certification(uncertified: ActuatorData) -> None:
     assert "not CSA certified" in fallback_answer("torque?", [_lookup("found", uncertified)], [])
 

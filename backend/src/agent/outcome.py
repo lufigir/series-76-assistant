@@ -26,7 +26,7 @@ def decide_outcome(
 
 
 def assemble_products(
-    lookups: list[LookupResult], searches: list[SearchResult]
+    lookups: list[LookupResult], searches: list[SearchResult], similar: list[ActuatorData] | None = None
 ) -> tuple[list[ActuatorData], list[Candidate], list[str]]:
     """Cards come from tool results only, once per part number, so no text from the model can become a card."""
     products: dict[str, ActuatorData] = {}
@@ -36,6 +36,8 @@ def assemble_products(
     for lookup in lookups:
         if lookup.actuator is not None:
             products.setdefault(lookup.actuator.part_number, lookup.actuator)
+    for actuator in similar or []:
+        products.setdefault(actuator.part_number, actuator)
 
     alternatives = [
         candidate

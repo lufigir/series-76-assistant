@@ -6,7 +6,7 @@ from typing import Any, NotRequired
 from langchain.agents import AgentState
 
 from src.actuators.provider import CatalogProvider
-from src.actuators.schemas import LookupResult, Requirements, SearchResult
+from src.actuators.schemas import ActuatorData, LookupResult, Requirements, SearchResult
 from src.agent.schemas import ModelCallTrace, ToolTrace, ValidationTrace
 
 
@@ -26,6 +26,7 @@ class TurnRecord:
     validation: ValidationTrace = field(default_factory=ValidationTrace)
     lookups: list[LookupResult] = field(default_factory=list)
     searches: list[SearchResult] = field(default_factory=list)
+    similar: list[ActuatorData] = field(default_factory=list)
     answer: str | None = None
 
 

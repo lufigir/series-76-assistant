@@ -245,7 +245,61 @@ CASES = (
                 outcome="recommendation",
                 first_product="761A00-11300000/A",
                 requirements={"enclosure": "weatherproof", "min_torque": None},
+                # A phone test: the torque went away without a word, so the next answer read as a contradiction.
+                any_of=("torque", "Nm"),
             ),
+        ),
+    ),
+    Case(
+        "similar-to-the-largest-model",
+        "recommendation",
+        (
+            # A phone test: the 767C was the only match, and "another one like it" ended at the smallest model.
+            Turn("Weatherproof, 220 V single phase, at least 9000 Nm", first_product="767C00-11320000/A"),
+            Turn(
+                "recomiéndame otro parecido",
+                outcome="answered",
+                tools=("find_similar",),
+                any_of=("767B00-11320000/A",),
+            ),
+        ),
+    ),
+    Case(
+        "size-of-the-catalog",
+        "data_sheet_notes",
+        (
+            # A phone test: "how many models are there?" got "I can't give a total count".
+            Turn("cuántos modelos hay en total?", tools=(NOTES,), values=("68",)),
+        ),
+    ),
+    Case(
+        "the-biggest-model",
+        "data_sheet_notes",
+        (
+            # A phone test: "the biggest you have" was asked back three times instead of answered.
+            Turn("what is the biggest actuator you have?", tools=(NOTES,), any_of=("767C00-11320000/A", "9000")),
+        ),
+    ),
+    Case(
+        "a-supply-the-catalog-lacks",
+        "data_sheet_notes",
+        (Turn("Is there a 480 V version?", tools=(NOTES,), any_of=("110", "220", "24")),),
+    ),
+    Case(
+        "greeting-mid-conversation",
+        "follow_up",
+        (
+            Turn("What is the on/off torque of 761A00-11300000/A?", tools=(LOOKUP,)),
+            # A phone test: "hola" repeated the last answer with its figures.
+            Turn("hola", no_tools=True, forbidden=("700", "80")),
+        ),
+    ),
+    Case(
+        "thanks-closes",
+        "follow_up",
+        (
+            Turn("What is the on/off torque of 761A00-11300000/A?", tools=(LOOKUP,)),
+            Turn("perfecto, gracias", no_tools=True, forbidden=("700", "80")),
         ),
     ),
     Case(
@@ -295,6 +349,37 @@ CASES = (
                 tools=(LOOKUP,),
                 no_products=True,
                 has_suggestions=True,
+            ),
+        ),
+    ),
+    Case(
+        "similar-to-a-number-not-in-the-tables",
+        "invalid_part_number",
+        (
+            # A phone test: asked for something similar, the answer restarted the search from the smallest model.
+            Turn("763A0011120-00000000/A", outcome="invalid_part_number", has_suggestions=True),
+            Turn("hay algo parecido?", outcome="answered", tools=("find_similar",), first_product="763A00-11320000/A"),
+        ),
+    ),
+    Case(
+        "sibling-named-by-its-size",
+        "follow_up",
+        (
+            Turn("761A00-11300000/A", outcome="answered", tools=(LOOKUP,)),
+            Turn("and the 762?", outcome="answered", tools=(LOOKUP,), first_product="762A00-11300000/A"),
+        ),
+    ),
+    Case(
+        "like-a-model-with-one-change",
+        "recommendation",
+        (
+            # 763A00-11320000/A gives 300 Nm on/off; the explosionproof 763X30 gives 260, so the 763Y30 is the one.
+            Turn(
+                "something like 763A00-11320000/A but explosionproof",
+                outcome="recommendation",
+                tools=(LOOKUP, SEARCH),
+                first_product="763Y30-11320000/A",
+                requirements={"enclosure": "explosionproof", "power_supply": "220v_single_phase"},
             ),
         ),
     ),

@@ -66,7 +66,7 @@ class Assistant:
             record.validation.used_template = True
             record.answer = fallback_answer(query, record.lookups, record.searches)
 
-        products, alternatives, suggestions = assemble_products(record.lookups, record.searches)
+        products, alternatives, suggestions = assemble_products(record.lookups, record.searches, record.similar)
         called = {tool.name for tool in record.tools}
         return TurnResult(
             answer=record.answer,

@@ -58,9 +58,28 @@ async def find_actuators(
 
 
 @tool
-async def get_data_sheet_notes() -> str:
-    """Get the notes printed with the data sheet: tolerances, duty standard, certifications and column meanings."""
-    return json.dumps(DATA_SHEET_NOTES)
+async def find_similar(part_number: Annotated[str, Field(max_length=64)], runtime: Runtime) -> str:
+    """Get one actuator and the models most like it: same enclosure and power supply, closest torque.
+
+    Use it when the user asks for something similar to, or another option instead of, a given model.
+    """
+    async with runtime.context.catalog() as catalog:
+        result = await catalog.similar(part_number)
+    runtime.context.record.lookups.append(result.reference)
+    runtime.context.record.similar.extend(result.similar)
+    return result.model_dump_json(exclude_none=True)
+
+
+@tool
+async def get_data_sheet_notes(runtime: Runtime) -> str:
+    """Get the notes printed with the data sheet: tolerances, duty standard, certifications and column meanings.
+
+    Also an overview of the whole catalog: how many models, which supplies each enclosure comes in, and the
+    smallest and largest model of each.
+    """
+    async with runtime.context.catalog() as catalog:
+        summary = await catalog.overview()
+    return json.dumps({"notes": DATA_SHEET_NOTES, "catalog": summary})
 
 
 @tool
@@ -69,5 +88,5 @@ async def mark_out_of_scope() -> str:
     return "Recorded."
 
 
-TOOLS = [get_actuator, find_actuators, get_data_sheet_notes, mark_out_of_scope]
+TOOLS = [get_actuator, find_actuators, find_similar, get_data_sheet_notes, mark_out_of_scope]
 TOOL_NAMES = [assistant_tool.name for assistant_tool in TOOLS]

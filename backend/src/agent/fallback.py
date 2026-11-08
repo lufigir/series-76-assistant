@@ -22,6 +22,9 @@ _TEXT = {
         "misses": "misses {items}",
         "ask": "To recommend a model I need the enclosure, the power supply, the service and the torque.",
         "no_csa": "not CSA certified",
+        "on_off": "on/off",
+        "modulating": "modulating",
+        "unspecified": "service not stated",
         "generic": "I could not produce a verified answer. Please rephrase the question or give a base part number.",
     },
     "es": {
@@ -36,6 +39,9 @@ _TEXT = {
         "misses": "no cumple {items}",
         "ask": "Para recomendar un modelo necesito el tipo de envolvente, la alimentación, el servicio y el torque.",
         "no_csa": "sin certificación CSA",
+        "on_off": "on/off",
+        "modulating": "modulante",
+        "unspecified": "servicio no indicado",
         "generic": "No pude generar una respuesta verificada. Reformula la pregunta o indica un número de parte base.",
     },
 }
@@ -43,7 +49,8 @@ _TEXT = {
 
 def _describe(actuator: ActuatorData, text: dict[str, str]) -> str:
     ratings = "; ".join(
-        f"{rating.service.value} {rating.torque_in_lb} in-lb / {rating.torque_nm} Nm" for rating in actuator.ratings
+        f"{text[rating.service.value]} {rating.torque_in_lb} in-lb / {rating.torque_nm} Nm"
+        for rating in actuator.ratings
     )
     warning = f" ({text['no_csa']})" if actuator.not_csa_certified else ""
     return f"- {actuator.part_number}{warning}: {text['torque']} {ratings}"

@@ -250,11 +250,11 @@ private fun ModelDetails(
 private fun checkColor(state: CheckState): Color =
     when (state) {
         CheckState.UNMET -> MaterialTheme.colorScheme.tertiary
-        CheckState.MET -> MaterialTheme.colorScheme.primary
+        CheckState.MET -> MaterialTheme.colorScheme.secondary
         CheckState.NOT_CHECKED -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-/** A shape as well as a color, so met and missed read apart without telling petrol from amber. */
+/** A shape as well as a color, so met and missed read apart without telling graphite from amber. */
 @Composable
 private fun CheckIcon(state: CheckState) {
     val icon =

@@ -21,21 +21,22 @@ import androidx.compose.ui.unit.sp
 import com.series76.assistant.R
 
 /*
- * An engineering tool with some warmth: ivory and warm-gray surfaces in place of pure white and cool grays, a petrol
- * blue for what can be pressed and what was met, and amber for what needs attention. Red means an error and nothing
- * else. Dynamic color stays off, because a wallpaper-derived palette would not keep these contrast pairs, and the
- * status colors have to mean the same on every phone.
+ * An engineering tool in the colors of the equipment: a dark rust red that echoes the red housings of these actuators
+ * without copying the manufacturer's brand crimson, over cool graphite surfaces. Rust marks what can be pressed, amber
+ * what needs attention, and graphite what was met. Rust sits close to the error red, so errors always carry a label or
+ * an icon as well as their color. Dynamic color stays off, because a wallpaper-derived palette would not keep these
+ * contrast pairs, and the status colors have to mean the same on every phone.
  */
 private val LightColors =
     lightColorScheme(
-        primary = Color(0xFF0E5C6B),
+        primary = Color(0xFF8C2F22),
         onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFCFE6EA),
-        onPrimaryContainer = Color(0xFF00313A),
-        secondary = Color(0xFF5B5853),
+        primaryContainer = Color(0xFFFFDAD3),
+        onPrimaryContainer = Color(0xFF3D0702),
+        secondary = Color(0xFF4F5459),
         onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFEAE4DA),
-        onSecondaryContainer = Color(0xFF26231E),
+        secondaryContainer = Color(0xFFE1E3E6),
+        onSecondaryContainer = Color(0xFF1A1D21),
         tertiary = Color(0xFF8A5800),
         onTertiary = Color(0xFFFFFFFF),
         tertiaryContainer = Color(0xFFFFE3B3),
@@ -44,31 +45,31 @@ private val LightColors =
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFF9DEDC),
         onErrorContainer = Color(0xFF410E0B),
-        background = Color(0xFFFBF9F5),
-        onBackground = Color(0xFF1C1B18),
-        surface = Color(0xFFFBF9F5),
-        onSurface = Color(0xFF1C1B18),
-        surfaceVariant = Color(0xFFEAE4DA),
-        onSurfaceVariant = Color(0xFF5D5950),
+        background = Color(0xFFF8F9FA),
+        onBackground = Color(0xFF1A1C1E),
+        surface = Color(0xFFF8F9FA),
+        onSurface = Color(0xFF1A1C1E),
+        surfaceVariant = Color(0xFFE1E3E6),
+        onSurfaceVariant = Color(0xFF44474C),
         surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF5F2EC),
-        surfaceContainer = Color(0xFFF0ECE5),
-        surfaceContainerHigh = Color(0xFFEAE5DD),
-        surfaceContainerHighest = Color(0xFFE3DED5),
-        outline = Color(0xFF7E796F),
-        outlineVariant = Color(0xFFE0DACF),
+        surfaceContainerLow = Color(0xFFF2F3F5),
+        surfaceContainer = Color(0xFFECEEF0),
+        surfaceContainerHigh = Color(0xFFE6E8EB),
+        surfaceContainerHighest = Color(0xFFE0E2E5),
+        outline = Color(0xFF74777C),
+        outlineVariant = Color(0xFFD9DCE0),
     )
 
 private val DarkColors =
     darkColorScheme(
-        primary = Color(0xFF8FD0DC),
-        onPrimary = Color(0xFF00363F),
-        primaryContainer = Color(0xFF104E5B),
-        onPrimaryContainer = Color(0xFFCFE6EA),
-        secondary = Color(0xFFCDC6BB),
-        onSecondary = Color(0xFF34302A),
-        secondaryContainer = Color(0xFF3A362F),
-        onSecondaryContainer = Color(0xFFEAE4DA),
+        primary = Color(0xFFFFB4A3),
+        onPrimary = Color(0xFF5C130A),
+        primaryContainer = Color(0xFF72261A),
+        onPrimaryContainer = Color(0xFFFFDAD3),
+        secondary = Color(0xFFC3C6CB),
+        onSecondary = Color(0xFF2D3135),
+        secondaryContainer = Color(0xFF3A3E43),
+        onSecondaryContainer = Color(0xFFE1E3E6),
         tertiary = Color(0xFFF2C06B),
         onTertiary = Color(0xFF452B00),
         tertiaryContainer = Color(0xFF573A00),
@@ -77,20 +78,20 @@ private val DarkColors =
         onError = Color(0xFF601410),
         errorContainer = Color(0xFF8C1D18),
         onErrorContainer = Color(0xFFF9DEDC),
-        // A soft warm near-black instead of pure black is easier on the eyes through long reading of figures.
-        background = Color(0xFF151412),
-        onBackground = Color(0xFFE8E3DB),
-        surface = Color(0xFF151412),
-        onSurface = Color(0xFFE8E3DB),
-        surfaceVariant = Color(0xFF3A362F),
-        onSurfaceVariant = Color(0xFFBDB6AA),
-        surfaceContainerLowest = Color(0xFF100F0D),
-        surfaceContainerLow = Color(0xFF1D1B18),
-        surfaceContainer = Color(0xFF221F1C),
-        surfaceContainerHigh = Color(0xFF2C2925),
-        surfaceContainerHighest = Color(0xFF37332E),
-        outline = Color(0xFF8B857A),
-        outlineVariant = Color(0xFF3D3933),
+        // A graphite near-black instead of pure black is easier on the eyes through long reading of figures.
+        background = Color(0xFF121416),
+        onBackground = Color(0xFFE2E3E5),
+        surface = Color(0xFF121416),
+        onSurface = Color(0xFFE2E3E5),
+        surfaceVariant = Color(0xFF3A3E43),
+        onSurfaceVariant = Color(0xFFC3C6CB),
+        surfaceContainerLowest = Color(0xFF0D0F11),
+        surfaceContainerLow = Color(0xFF1A1C1F),
+        surfaceContainer = Color(0xFF1E2023),
+        surfaceContainerHigh = Color(0xFF282A2E),
+        surfaceContainerHighest = Color(0xFF333539),
+        outline = Color(0xFF8D9196),
+        outlineVariant = Color(0xFF3E4247),
     )
 
 private val AppShapes =

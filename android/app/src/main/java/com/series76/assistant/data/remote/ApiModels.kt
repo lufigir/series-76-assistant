@@ -20,7 +20,6 @@ data class SessionSummary(
     val title: String,
     val date: String,
     val preview: String? = null,
-    @SerialName("part_numbers") val partNumbers: List<String> = emptyList(),
 )
 
 /** A catalog row: enough to complete and build part numbers in the app, without the ratings. */
@@ -29,6 +28,7 @@ data class CatalogEntry(
     @SerialName("part_number") val partNumber: String,
     val enclosure: String,
     @SerialName("power_supply") val powerSupply: String,
+    @SerialName("max_torque_nm") val maxTorqueNm: Int?,
 )
 
 /** One page of a list. Passing nextCursor back fetches the following page; it is null on the last one. */
@@ -48,6 +48,7 @@ data class ConversationRequest(
 data class ConversationResponse(
     @SerialName("session_id") val sessionId: String,
     @SerialName("message_id") val messageId: String,
+    val title: String,
     val answer: String,
     val outcome: String,
     val products: List<ActuatorData>,

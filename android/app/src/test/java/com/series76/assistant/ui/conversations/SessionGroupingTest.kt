@@ -3,6 +3,7 @@ package com.series76.assistant.ui.conversations
 import com.series76.assistant.data.remote.SessionSummary
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -29,6 +30,18 @@ class SessionGroupingTest {
     }
 
     @Test
+    fun `dates stay in English on a phone set to another language`() {
+        val before = Locale.getDefault()
+        Locale.setDefault(Locale.forLanguageTag("es-CO"))
+        try {
+            assertEquals("Fri", group("2026-10-30T08:00:00+00:00").single().sessions.single().time)
+            assertEquals("Oct 20, 2026", group("2026-10-20T08:00:00+00:00").single().sessions.single().time)
+        } finally {
+            Locale.setDefault(before)
+        }
+    }
+
+    @Test
     fun `the day is the local one, not the one in the timestamp`() {
         assertEquals("Today", group("2026-11-03T23:30:00-05:00").single().label)
     }
@@ -43,18 +56,5 @@ class SessionGroupingTest {
         val session = SessionSummary("1", "Title", "2026-11-04T10:00:00+00:00", preview = "First line.\n\nSecond line.")
         assertEquals("First line. Second line.", row(session).preview)
         assertNull(row(SessionSummary("1", "Title", "2026-11-04T10:00:00+00:00", preview = "  ")).preview)
-    }
-
-    @Test
-    fun `a part number the title or preview already shows gets no tag`() {
-        val session =
-            SessionSummary(
-                "1",
-                "torque of 763a00 11320000",
-                "2026-11-04T10:00:00+00:00",
-                preview = "The 764B00-11320000/A also fits.",
-                partNumbers = listOf("763A00-11320000/A", "764B00-11320000/A", "765A00-11320000/A"),
-            )
-        assertEquals(listOf("765A00-11320000/A"), row(session).partNumbers)
     }
 }

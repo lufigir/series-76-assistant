@@ -87,6 +87,12 @@ fun unmetText(unmet: UnmetRequirement): String =
  * One line of requirements that wraps between them, so no figure is split from its unit. A no-break space holds
  * the words of a requirement together, and a word joiner stops the break a line would otherwise take after "/".
  */
+/**
+ * Whether the requirements strip only repeats the title above it. A conversation named after its first search shows
+ * the same words twice until the requirements change, and only then does the strip say something new.
+ */
+fun stripRepeatsTitle(chips: List<String>, title: String?): Boolean = chips.joinToString(" · ") == title
+
 fun requirementsLine(chips: List<String>): String =
     chips.joinToString(" · ") { it.replace(" ", "\u00A0").replace("/", "/\u2060") }
 
@@ -185,8 +191,9 @@ fun outcomeNote(outcome: String?, hasResults: Boolean = true): String? =
         else -> null
     }
 
-fun conversationTitle(messages: List<ChatMessage>, loading: Boolean): String =
-    messages.firstOrNull { it.fromUser }?.text ?: if (loading) "" else "New conversation"
+/** The backend's name once it has one; until then, the question that started the conversation. */
+fun conversationTitle(title: String?, messages: List<ChatMessage>, loading: Boolean): String =
+    title ?: messages.firstOrNull { it.fromUser }?.text ?: if (loading) "" else "New conversation"
 
 private const val LONG_WAIT_SECONDS = 10
 

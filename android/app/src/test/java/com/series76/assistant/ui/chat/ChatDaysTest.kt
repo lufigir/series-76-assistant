@@ -13,6 +13,24 @@ class ChatDaysTest {
     private fun days(vararg messages: ChatMessage) = chatDays(messages.toList(), today, ZoneOffset.UTC)
 
     @Test
+    fun `the latest question counts the day headers above it`() {
+        val answer = ChatMessage(id = "r", fromUser = false, text = "r", createdAt = "2026-11-04T10:01:00+00:00")
+        val result =
+            days(
+                message("a", "2026-11-03T09:00:00+00:00"),
+                message("b", "2026-11-04T10:00:00+00:00"),
+                answer,
+            )
+        // Yesterday, a, Today, b, r.
+        assertEquals(3, latestQuestionIndex(result))
+    }
+
+    @Test
+    fun `without a question there is nothing to pin`() {
+        assertEquals(null, latestQuestionIndex(emptyList()))
+    }
+
+    @Test
     fun `consecutive messages of one day share a header`() {
         val result =
             days(

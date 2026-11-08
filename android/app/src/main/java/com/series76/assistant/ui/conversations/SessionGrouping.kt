@@ -7,6 +7,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.format.FormatStyle
+import java.util.Locale
 
 data class SessionGroup(val label: String, val sessions: List<SessionRow>)
 
@@ -15,12 +16,12 @@ data class SessionRow(
     val title: String,
     val time: String,
     val preview: String? = null,
-    val partNumbers: List<String> = emptyList(),
 )
 
-private val TIME = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-private val WEEKDAY = DateTimeFormatter.ofPattern("EEE")
+// English like every other word in the app; the device locale gave "vie" beside "Previous 7 days".
+private val TIME = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.US)
+private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.US)
+private val WEEKDAY = DateTimeFormatter.ofPattern("EEE", Locale.US)
 private const val WEEK_DAYS = 7L
 private val WHITESPACE = Regex("\\s+")
 
@@ -64,20 +65,9 @@ fun groupSessions(
                     title = session.title,
                     time = time,
                     preview = session.preview?.replace(WHITESPACE, " ")?.trim()?.ifEmpty { null },
-                    partNumbers = unnamed(session.partNumbers, session.title, session.preview),
                 )
         }
     return rows
         .groupBy({ it.first }, { it.second })
         .map { (label, grouped) -> SessionGroup(label, grouped) }
-}
-
-private val NOT_ALPHANUMERIC = Regex("[^0-9A-Za-z]")
-
-private fun compact(text: String) = text.replace(NOT_ALPHANUMERIC, "").uppercase()
-
-/** The part numbers the title and preview do not already show, however they were typed there. */
-private fun unnamed(partNumbers: List<String>, title: String, preview: String?): List<String> {
-    val shown = compact(title + " " + preview.orEmpty())
-    return partNumbers.filterNot { compact(it).removeSuffix("A") in shown }
 }

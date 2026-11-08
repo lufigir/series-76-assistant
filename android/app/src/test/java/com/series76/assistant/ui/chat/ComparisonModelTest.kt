@@ -201,11 +201,12 @@ class ComparisonModelTest {
     }
 
     @Test
-    fun `a conversation is named after its first question`() {
+    fun `a conversation shows the backend's name, and its first question until it has one`() {
         val messages = listOf(ChatMessage("1", true, "Torque of 761A?"), ChatMessage("2", false, "It delivers 80 Nm."))
-        assertEquals("Torque of 761A?", conversationTitle(messages, loading = false))
-        assertEquals("New conversation", conversationTitle(emptyList(), loading = false))
-        assertEquals("", conversationTitle(emptyList(), loading = true))
+        assertEquals("761A00-11300000/A", conversationTitle("761A00-11300000/A", messages, loading = false))
+        assertEquals("Torque of 761A?", conversationTitle(null, messages, loading = false))
+        assertEquals("New conversation", conversationTitle(null, emptyList(), loading = false))
+        assertEquals("", conversationTitle(null, emptyList(), loading = true))
     }
 
     private val torqueOnOff =
@@ -269,6 +270,15 @@ class ComparisonModelTest {
         assertEquals("On/off 79,700 in-lb", summaryLine(large, TorqueDisplay.IN_LB))
         assertEquals("6,641.7", rows(large, unit = TorqueDisplay.FT_LB).first { "Torque" in it.label }.values.single())
         assertEquals(listOf("≥ 1,500.5 in-lb"), requirementChips(Requirements(minTorque = TorqueRequirement(1500.5, "in_lb"))))
+    }
+
+    @Test
+    fun `the strip hides while it says what the title says, and returns once the requirements change`() {
+        val title = "Weatherproof · 220 V · ≥ 500 Nm"
+        val named = Requirements(enclosure = "weatherproof", powerSupply = "220v", minTorque = TorqueRequirement(500.0, "nm"))
+        assertTrue(stripRepeatsTitle(requirementChips(named), title))
+        assertFalse(stripRepeatsTitle(requirementChips(named.copy(minTorque = null)), title))
+        assertFalse(stripRepeatsTitle(requirementChips(named), "761A00-11300000/A"))
     }
 
     @Test

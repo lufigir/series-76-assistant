@@ -6,10 +6,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.format.FormatStyle
+import java.util.Locale
 
 data class ChatDay(val label: String, val messages: List<ChatMessage>)
 
-private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+// English like the rest of the screen, whatever the device language.
+private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.US)
 
 /**
  * Consecutive messages of the same local day, in order. A message without a readable time, such as one still being
@@ -31,6 +33,23 @@ fun chatDays(
         }
     }
     return days
+}
+
+/**
+ * The list index of the latest question, counting each day's header before its messages, or null when nobody has asked
+ * anything yet. The screen pins it to the top, so a short reply and a long table both read as question, then answer.
+ */
+fun latestQuestionIndex(days: List<ChatDay>): Int? {
+    var index = 0
+    var latest: Int? = null
+    days.forEach { day ->
+        index++
+        day.messages.forEach { message ->
+            if (message.fromUser) latest = index
+            index++
+        }
+    }
+    return latest
 }
 
 private fun dayLabel(createdAt: String, today: LocalDate, zone: ZoneId): String? {

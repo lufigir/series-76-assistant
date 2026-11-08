@@ -1,5 +1,6 @@
 package com.series76.assistant.ui.chat
 
+import com.series76.assistant.ui.components.keepPartNumbersWhole
 import android.content.ClipData
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Build
@@ -59,20 +60,20 @@ internal fun UserMessage(message: ChatMessage, onRetry: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
         // The corner nearest the edge stays tight, which points the bubble at the side it came from.
         Text(
-            message.text,
+            keepPartNumbersWhole(message.text),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier =
                 Modifier.widthIn(max = 320.dp)
                     .background(MaterialTheme.colorScheme.primaryContainer, USER_BUBBLE)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
         )
         message.error?.let { error ->
             Text(
                 error,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 6.dp),
+                modifier = Modifier.padding(top = 8.dp),
             )
             TextButton(onClick = onRetry) { Text("Try again") }
         }
@@ -85,6 +86,7 @@ internal fun AssistantMessage(
     message: ChatMessage,
     unit: TorqueDisplay,
     isLatest: Boolean,
+    foldResults: Boolean,
     onSuggestion: (String) -> Unit,
     onOpenDebug: () -> Unit,
 ) {
@@ -114,14 +116,14 @@ internal fun AssistantMessage(
                             },
                         )
                     },
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutcomeNote(
                 message.outcome,
                 hasResults =
                     message.products.isNotEmpty() || message.alternatives.isNotEmpty() || message.suggestions.isNotEmpty(),
             )
-            Text(message.text, style = MaterialTheme.typography.bodyLarge)
+            Text(keepPartNumbersWhole(message.text), style = MaterialTheme.typography.bodyLarge)
             // Only on the latest answer: on an older one, a tap would answer a question the conversation has moved past.
             // Above the results, because a long list would otherwise push the answer to a question off the screen.
             if (isLatest && message.followUps.isNotEmpty()) {
@@ -129,7 +131,7 @@ internal fun AssistantMessage(
                     message.followUps.forEach { followUp ->
                         SuggestionChip(
                             onClick = { onSuggestion(followUp) },
-                            label = { Text(followUp) },
+                            label = { Text(keepPartNumbersWhole(followUp)) },
                             icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp)) },
                             shape = CircleShape,
                         )
@@ -147,6 +149,7 @@ internal fun AssistantMessage(
                         message.products.map { product ->
                             if (product.partNumber in message.matches) emptyList() else null
                         },
+                    folded = foldResults,
                 )
             }
             if (message.alternatives.isNotEmpty()) {
@@ -164,7 +167,7 @@ internal fun AssistantMessage(
                     message.suggestions.forEach { suggestion ->
                         SuggestionChip(
                             onClick = { onSuggestion(suggestion) },
-                            label = { Text(suggestion) },
+                            label = { Text(keepPartNumbersWhole(suggestion)) },
                             icon = { Icon(Icons.Filled.Search, null, Modifier.size(16.dp)) },
                             shape = CircleShape,
                         )
@@ -224,7 +227,7 @@ internal fun WorkingAnswer() {
 
 @Composable
 internal fun WorkingRow(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

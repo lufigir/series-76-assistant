@@ -8,8 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.material3.Surface
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
@@ -46,15 +51,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -66,13 +76,18 @@ import com.series76.assistant.data.remote.Rating
 import com.series76.assistant.data.remote.Requirements
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
+import com.series76.assistant.ui.components.rememberPlaceholderVisible
 import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.Series76Theme
+import com.series76.assistant.ui.theme.ReadingWidth
+import com.series76.assistant.ui.theme.TopBarHeight
+import com.series76.assistant.ui.theme.sideRoom
 import kotlinx.coroutines.launch
 
 private const val USER_ITEM = "user"
 private const val ASSISTANT_ITEM = "assistant"
 private const val WORKING_ITEM = "working"
+private const val TAIL_ROOM = "tail-room"
 private const val DAY_ITEM = "day"
 private const val OLDER_PREFETCH_ROWS = 3
 
@@ -119,6 +134,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val days = remember(uiState.messages) { chatDays(uiState.messages) }
+    val folded = remember(uiState.messages) { foldedResults(uiState.messages) }
     // Each day adds its header to the list, so the last index counts them too.
     val itemCount = uiState.messages.size + days.size + if (uiState.sending) 1 else 0
 
@@ -126,11 +142,26 @@ fun ChatScreen(
     val tail = "${uiState.messages.lastOrNull()?.id}:${uiState.sending}"
     // Saved, so that coming back from the debug screen or a rotation keeps the reader's place instead of jumping.
     var placedTail by rememberSaveable { mutableStateOf<String?>(null) }
-    // Aligns the newest item's top, so a long table opens at its answer and not at its last row. History jumps there
-    // at once, because scrolling through a whole conversation on opening it only looks like the screen is lost.
+    // Pins the latest question to the top, as the reader sent it and once its answer arrives, so a one-line reply and a
+    // long table both read as question, then answer. History jumps there at once, because scrolling through a whole
+    // conversation on opening it only looks like the screen is lost.
+    val anchor = latestQuestionIndex(days) ?: (itemCount - 1)
+    // Room under the latest turn, so its question can reach the top while the answer is still short. It starts a screen
+    // tall when a turn is placed and then shrinks to what the turn leaves free, which keeps the question where it is.
+    val screenHeight = LocalWindowInfo.current.containerSize.height
+    var tailRoom by remember { mutableIntStateOf(0) }
+    LaunchedEffect(listState, anchor) {
+        snapshotFlow { fittedTailRoom(listState.layoutInfo, anchor) }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { tailRoom = it }
+    }
     LaunchedEffect(tail) {
         if (itemCount > 0 && tail != placedTail) {
-            if (placedTail == null) listState.scrollToItem(itemCount - 1) else listState.animateScrollToItem(itemCount - 1)
+            tailRoom = screenHeight
+            // One frame, so the list measures the new room before it scrolls into it.
+            withFrameNanos {}
+            if (placedTail == null) listState.scrollToItem(anchor) else listState.animateScrollToItem(anchor)
         }
         if (itemCount > 0) placedTail = tail
     }
@@ -147,7 +178,8 @@ fun ChatScreen(
         derivedStateOf {
             val layout = listState.layoutInfo
             val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index
-            lastVisible != null && lastVisible < layout.totalItemsCount - 1
+            // The room under the latest turn is the last item, so the latest message is the one before it.
+            lastVisible != null && lastVisible < layout.totalItemsCount - 2
         }
     }
 
@@ -155,9 +187,10 @@ fun ChatScreen(
         topBar = {
             Column {
                 TopAppBar(
+                expandedHeight = TopBarHeight,
                     title = {
                         Text(
-                            conversationTitle(uiState.messages, uiState.loadingHistory),
+                            conversationTitle(uiState.title, uiState.messages, uiState.loadingHistory),
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -173,58 +206,83 @@ fun ChatScreen(
             }
         },
         bottomBar = {
-            Composer(
-                uiState,
-                draft,
-                onDraftChange,
-                onSend,
-                onToggleRecording,
-                onCancelRecording,
-                onMicDenied,
-            )
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                Box(modifier = Modifier.widthIn(max = ReadingWidth)) {
+                    Composer(
+                        uiState,
+                        draft,
+                        onDraftChange,
+                        onSend,
+                        onToggleRecording,
+                        onCancelRecording,
+                        onMicDenied,
+                    )
+                }
+            }
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            uiState.requirements?.let { RequirementsStrip(requirementChips(it)) }
+            uiState.requirements?.let { requirements ->
+                val chips = requirementChips(requirements)
+                if (!stripRepeatsTitle(chips, uiState.title)) {
+                    // Aligned with the centered answers on a wide screen, so the strip reads as theirs.
+                    BoxWithConstraints {
+                        Box(Modifier.padding(horizontal = sideRoom(maxWidth))) { RequirementsStrip(chips) }
+                    }
+                }
+            }
+            val placeholder = rememberPlaceholderVisible(uiState.loadingHistory)
             Box(modifier = Modifier.weight(1f)) {
                 when {
-                    uiState.loadingHistory -> ListPlaceholder()
+                    placeholder -> ListPlaceholder()
+                    // Blank for the first moments of a load, which usually ends before a placeholder is worth showing.
+                    uiState.loadingHistory -> Unit
                     uiState.historyError != null -> ErrorState(uiState.historyError, onRetryHistory)
-                    uiState.messages.isEmpty() && !uiState.sending -> StartPanel(onPick = onDraftChange)
+                    uiState.messages.isEmpty() && !uiState.sending -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                            Box(Modifier.widthIn(max = ReadingWidth)) { StartPanel(onPick = onDraftChange) }
+                        }
                     else ->
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp),
-                        ) {
-                            days.forEach { day ->
-                                // Not pinned: a pinned label would sit on top of the answer being read, and most conversations
-                                // span a single day.
-                                item(key = "day-${day.label}", contentType = DAY_ITEM) { DayHeader(day.label) }
-                                items(
-                                    day.messages,
-                                    key = { it.id },
-                                    contentType = { if (it.fromUser) USER_ITEM else ASSISTANT_ITEM },
-                                ) { message ->
-                                    Box(Modifier.animateItem()) {
-                                        if (message.fromUser) {
-                                            UserMessage(message, onRetry = { onRetrySend(message) })
-                                        } else {
-                                            AssistantMessage(
-                                                message = message,
-                                                unit = preferredUnit(uiState.requirements),
-                                                isLatest = !uiState.sending && message === uiState.messages.last(),
-                                                onSuggestion = onSuggestion,
-                                                onOpenDebug = { onOpenDebug(message.id) },
-                                            )
+                        BoxWithConstraints {
+                            // Padding instead of a narrower list, so a swipe in the margins of a tablet still scrolls.
+                            val side = sideRoom(maxWidth)
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 12.dp + side, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                days.forEach { day ->
+                                    // Not pinned: a pinned label would sit on top of the answer being read, and most conversations
+                                    // span a single day.
+                                    item(key = "day-${day.label}", contentType = DAY_ITEM) { DayHeader(day.label) }
+                                    items(
+                                        day.messages,
+                                        key = { it.id },
+                                        contentType = { if (it.fromUser) USER_ITEM else ASSISTANT_ITEM },
+                                    ) { message ->
+                                        Box(Modifier.animateItem()) {
+                                            if (message.fromUser) {
+                                                UserMessage(message, onRetry = { onRetrySend(message) })
+                                            } else {
+                                                AssistantMessage(
+                                                    message = message,
+                                                    unit = preferredUnit(uiState.requirements),
+                                                    isLatest = !uiState.sending && message === uiState.messages.last(),
+                                                    foldResults = message.id in folded,
+                                                    onSuggestion = onSuggestion,
+                                                    onOpenDebug = { onOpenDebug(message.id) },
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            if (uiState.sending) {
-                                item(key = WORKING_ITEM, contentType = WORKING_ITEM) {
-                                    Box(Modifier.animateItem()) { WorkingAnswer() }
+                                if (uiState.sending) {
+                                    item(key = WORKING_ITEM, contentType = WORKING_ITEM) {
+                                        Box(Modifier.animateItem()) { WorkingAnswer() }
+                                    }
+                                }
+                                item(key = TAIL_ROOM, contentType = TAIL_ROOM) {
+                                    Spacer(Modifier.height(with(LocalDensity.current) { tailRoom.toDp() }))
                                 }
                             }
                         }
@@ -233,9 +291,10 @@ fun ChatScreen(
                 if (uiState.loadingOlder) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
                 }
+                // Hidden while the list moves, so it never sits over a table's last column as the reader scrolls past.
                 JumpToLatest(
-                    visible = canJump && uiState.messages.isNotEmpty(),
-                    onClick = { scope.launch { listState.animateScrollToItem(itemCount - 1) } },
+                    visible = canJump && !listState.isScrollInProgress && uiState.messages.isNotEmpty(),
+                    onClick = { scope.launch { listState.animateScrollToItem(anchor) } },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
                 )
             }
@@ -271,6 +330,19 @@ private fun JumpToLatest(visible: Boolean, onClick: () -> Unit, modifier: Modifi
     }
 }
 
+/**
+ * The room that lets the latest question sit at the top with the list scrolled to its end: what the viewport has left
+ * after the question and everything below it. Null while the question is off screen, when it cannot be measured.
+ */
+private fun fittedTailRoom(layout: LazyListLayoutInfo, anchor: Int): Int? {
+    val question = layout.visibleItemsInfo.firstOrNull { it.index == anchor } ?: return null
+    val last = layout.visibleItemsInfo.lastOrNull { it.key != TAIL_ROOM } ?: return null
+    // The turn runs past the bottom of the screen, so it already fills it.
+    if (last.index < layout.totalItemsCount - 2) return 0
+    val turn = last.offset + last.size - question.offset
+    return (layout.viewportEndOffset - layout.afterContentPadding - turn - layout.mainAxisItemSpacing).coerceAtLeast(0)
+}
+
 private fun preferredUnit(requirements: Requirements?): TorqueDisplay =
     TorqueDisplay.entries.firstOrNull { it.apiName == requirements?.minTorque?.unit } ?: TorqueDisplay.NM
 
@@ -291,7 +363,7 @@ private fun RequirementsStrip(chips: List<String>) {
                     .clickable(onClickLabel = if (expanded) "Fold the requirements" else "Show every requirement") {
                         expanded = !expanded
                     }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
@@ -310,19 +382,19 @@ private val STARTERS =
 private fun StartPanel(onPick: (String) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         BrandMark(size = 48.dp)
         Text(
             "What do you need to know?",
             style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 4.dp),
         )
         Text(
             "Ask by part number or by requirements. Every figure comes from the Series 76 data tables.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 10.dp),
+            modifier = Modifier.padding(bottom = 12.dp),
         )
         STARTERS.forEach { starter ->
             Surface(
@@ -332,12 +404,12 @@ private fun StartPanel(onPick: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconBadge(painterResource(starter.icon))
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(starter.task, style = MaterialTheme.typography.titleSmall)
                         Text(
                             starter.query,

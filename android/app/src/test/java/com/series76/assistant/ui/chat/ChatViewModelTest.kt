@@ -58,6 +58,7 @@ private class FakeApi : Series76Api {
         return ConversationResponse(
             sessionId = "session-1",
             messageId = "message-${sent.size}",
+            title = "761A00-11300000/A",
             answer = "Answer",
             outcome = "answered",
             products = emptyList(),
@@ -69,7 +70,7 @@ private class FakeApi : Series76Api {
 
     override suspend fun debug(messageId: String): MessageDebug = throw NotImplementedError()
 
-    override suspend fun catalog() = listOf(CatalogEntry("763A00-11320000/A", "weatherproof", "220v_single_phase"))
+    override suspend fun catalog() = listOf(CatalogEntry("763A00-11320000/A", "weatherproof", "220v_single_phase", 300))
 
     override suspend fun transcribe(audio: RequestBody): TranscriptionResponse {
         if (failTranscribe) throw IOException()
@@ -105,7 +106,7 @@ class ChatViewModelTest {
         session: String? = null,
         saved: SavedStateHandle = SavedStateHandle(),
         recorder: AudioRecorder = FakeRecorder(recordingFile()),
-    ) = ChatViewModel(saved, session, repository, VoiceRepository(recorder, api, json), CatalogRepository(api, json))
+    ) = ChatViewModel(saved, session, null, repository, VoiceRepository(recorder, api, json), CatalogRepository(api, json))
 
     private fun ChatViewModel.ask(text: String) {
         updateDraft(text)

@@ -43,6 +43,8 @@ data class ChatMessage(
 enum class VoiceState { IDLE, RECORDING, TRANSCRIBING }
 
 data class ChatUiState(
+    // The backend's name for the conversation; null until the first answer of a new one.
+    val title: String? = null,
     val messages: List<ChatMessage> = emptyList(),
     val requirements: Requirements? = null,
     val loadingHistory: Boolean = false,
@@ -59,6 +61,7 @@ data class ChatUiState(
 class ChatViewModel(
     private val savedState: SavedStateHandle,
     openedSessionId: String?,
+    openedTitle: String?,
     private val conversations: ConversationRepository,
     private val voice: VoiceRepository,
     private val catalog: CatalogRepository,
@@ -75,7 +78,7 @@ class ChatViewModel(
     var draft by mutableStateOf(savedState[DRAFT] ?: "")
         private set
 
-    private val _uiState = MutableStateFlow(ChatUiState())
+    private val _uiState = MutableStateFlow(ChatUiState(title = savedState[TITLE] ?: openedTitle))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
@@ -163,8 +166,10 @@ class ChatViewModel(
             when (val result = conversations.send(sessionId, message.text)) {
                 is ApiResult.Success -> {
                     sessionId = result.value.sessionId
+                    savedState[TITLE] = result.value.title
                     _uiState.update { state ->
                         state.copy(
+                            title = result.value.title,
                             sending = false,
                             messages = state.messages + toChatMessage(result.value),
                             requirements = result.value.requirements,
@@ -269,6 +274,7 @@ class ChatViewModel(
 
     private companion object {
         const val SESSION_ID = "session_id"
+        const val TITLE = "title"
         const val DRAFT = "draft"
     }
 }

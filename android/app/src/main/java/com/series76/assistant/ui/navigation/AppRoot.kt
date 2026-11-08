@@ -40,7 +40,7 @@ import kotlinx.serialization.Serializable
 private data object ConversationsKey : NavKey
 
 @Serializable
-private data class ChatKey(val sessionId: String?) : NavKey
+private data class ChatKey(val sessionId: String?, val title: String? = null) : NavKey
 
 @Serializable
 private data class DebugKey(val messageId: String) : NavKey
@@ -108,7 +108,7 @@ private fun SignedInNavigation(container: AppContainer) {
                                         }
                                     },
                             ),
-                        onOpen = { backStack.add(ChatKey(it)) },
+                        onOpen = { id, title -> backStack.add(ChatKey(id, title)) },
                         onNew = { backStack.add(ChatKey(null)) },
                     )
                 }
@@ -122,6 +122,7 @@ private fun SignedInNavigation(container: AppContainer) {
                                             ChatViewModel(
                                                 createSavedStateHandle(),
                                                 key.sessionId,
+                                                key.title,
                                                 container.conversationRepository,
                                                 container.voiceRepository,
                                                 container.catalogRepository,

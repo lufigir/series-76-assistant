@@ -1,5 +1,6 @@
 package com.series76.assistant.ui.chat
 
+import com.series76.assistant.ui.components.keepPartNumbersWhole
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -14,12 +15,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
@@ -29,6 +32,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.CheckCircle
@@ -38,6 +43,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.res.painterResource
 import com.series76.assistant.R
 import com.series76.assistant.ui.components.IconBadge
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -46,8 +53,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,7 +71,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +91,7 @@ private val LABEL_WIDTH = 124.dp
 
 // Condensed density, about 36 to 40 dp a row: Material's tables use 52, and dense views go down to 40. These rows are
 // read, not tapped, so they need no 48 dp touch target.
-private val ROW_PADDING = 3.dp
+private val ROW_PADDING = 4.dp
 private val PANEL_PADDING = 12.dp
 
 // Wide enough that another product runs off a phone's edge: the cut-off column is what says the table scrolls.
@@ -98,12 +110,30 @@ fun ProductResults(
     defaultUnit: TorqueDisplay,
     requirements: Requirements?,
     unmetByModel: List<List<UnmetRequirement>?>,
+    folded: Boolean = false,
 ) {
+    var open by rememberSaveable { mutableStateOf(!folded) }
+    if (!open) {
+        FoldedResults(products, onOpen = { open = true })
+        return
+    }
     val checks = remember(requirements, unmetByModel) { requirementChecks(requirements, unmetByModel) }
     when (resultLayout(products.size)) {
         ResultLayout.CARD -> ProductCard(products.single(), defaultUnit, checks)
         ResultLayout.PAIR -> ComparisonTable(title, products, defaultUnit, checks)
         ResultLayout.LIST -> ProductList(title, products, defaultUnit, checks)
+    }
+}
+
+/** Models an earlier answer already showed in full: who they are, and the sheet one tap away. */
+@Composable
+private fun FoldedResults(products: List<ActuatorData>, onOpen: () -> Unit) {
+    DataPanel {
+        products.forEachIndexed { index, product ->
+            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Identity(product)
+        }
+        ExpandRow(if (products.size == 1) "Show data sheet" else "Show comparison", onToggle = onOpen)
     }
 }
 
@@ -115,6 +145,9 @@ private fun singleModel(checks: List<RequirementCheck>, index: Int) =
 private fun ProductCard(product: ActuatorData, defaultUnit: TorqueDisplay, checks: List<RequirementCheck>) {
     var unit by rememberSaveable { mutableStateOf(defaultUnit) }
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val reveal = remember { BringIntoViewRequester() }
+    // The rows open below the fold of a long answer, so the list follows them instead of leaving them off screen.
+    LaunchedEffect(expanded) { if (expanded) reveal.bringIntoView() }
 
     DataPanel {
         Identity(product)
@@ -122,22 +155,10 @@ private fun ProductCard(product: ActuatorData, defaultUnit: TorqueDisplay, check
             Notice("The data sheet lists this model as N/A, so it publishes no ratings for it.")
         } else {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            if (product.ratings.isNotEmpty()) {
-                UnitSwitch(
-                    unit,
-                    onChange = { unit = it },
-                    modifier = Modifier.align(Alignment.End).padding(horizontal = 6.dp),
-                )
-            }
-            ModelDetails(product, unit, checks)
+            ModelDetails(product, unit, checks, onUnit = if (product.ratings.isNotEmpty()) ({ unit = it }) else null)
+            // Above its toggle, so the button that opened the rows stays below them, where it closes them too.
+            if (expanded) ExtraSpecs(remember(product, unit) { extraRows(product, unit) }, Modifier.bringIntoViewRequester(reveal))
             ExpandRow(if (expanded) "Show less" else "More specifications", onToggle = { expanded = !expanded })
-            if (expanded) {
-                val scroll = rememberScrollState()
-                remember(product, unit) { extraRows(product, unit) }.forEach { row ->
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    ValueRow(row, listOf(product.partNumber), scroll, ColumnFit.CONTENT)
-                }
-            }
         }
     }
 }
@@ -146,10 +167,10 @@ private fun ProductCard(product: ActuatorData, defaultUnit: TorqueDisplay, check
 private fun Identity(product: ActuatorData) {
     Row(
         modifier = Modifier.padding(PANEL_PADDING),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconBadge(painterResource(enclosureIcon(product.enclosure)), size = 32.dp)
+        IconBadge(painterResource(enclosureIcon(product.enclosure)), size = 28.dp)
         IdentityText(product)
     }
 }
@@ -160,7 +181,13 @@ private fun enclosureIcon(enclosure: String): Int =
 @Composable
 private fun IdentityText(product: ActuatorData) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(product.partNumber, style = PartNumberStyle)
+        // One line that shrinks at large text sizes: a code split across lines is easy to misread.
+        Text(
+            product.partNumber,
+            style = PartNumberStyle,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = PartNumberStyle.fontSize),
+        )
         Text(
             "${enclosureLabel(product.enclosure)} · ${powerSupplyLabel(product.powerSupply)}",
             style = MaterialTheme.typography.bodyMedium,
@@ -178,9 +205,14 @@ private fun IdentityText(product: ActuatorData) {
 
 /** What was asked first, then the data sheet: the first answers whether this model fits, the second what it is. */
 @Composable
-private fun ModelDetails(product: ActuatorData, unit: TorqueDisplay, checks: List<RequirementCheck>) {
+private fun ModelDetails(
+    product: ActuatorData,
+    unit: TorqueDisplay,
+    checks: List<RequirementCheck>,
+    onUnit: ((TorqueDisplay) -> Unit)? = null,
+) {
     if (checks.isNotEmpty()) {
-        Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, bottom = 10.dp)) {
+        Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, bottom = 12.dp)) {
             SectionLabel("Your requirements", modifier = Modifier.padding(bottom = 4.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             checks.forEach { check ->
@@ -208,7 +240,10 @@ private fun ModelDetails(product: ActuatorData, unit: TorqueDisplay, checks: Lis
             }
         }
     }
-    remember(product, unit) { specTables(product, unit) }.forEach { table -> SpecTableView(table) }
+    // The unit switch sits in the corner of the torque table, the only table it changes, instead of a row of its own.
+    remember(product, unit) { specTables(product, unit) }.forEachIndexed { index, table ->
+        SpecTableView(table, corner = if (index == 0 && onUnit != null) ({ UnitSwitch(unit, onUnit) }) else null)
+    }
 }
 
 @Composable
@@ -232,44 +267,74 @@ private fun CheckIcon(state: CheckState) {
 }
 
 @Composable
-private fun SpecTableView(table: SpecTable) {
-    Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, bottom = 10.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            Box(Modifier.weight(LABEL_WEIGHT))
-            table.columns.forEach { column ->
-                // One line that shrinks to fit: at large text sizes "Modulating" would otherwise break mid-word.
-                Text(
-                    column,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = MaterialTheme.typography.labelMedium.fontSize),
-                    modifier = Modifier.weight(1f).padding(start = 8.dp),
-                )
+private fun SpecTableView(table: SpecTable, corner: (@Composable () -> Unit)? = null) {
+    Column(modifier = Modifier.padding(start = PANEL_PADDING, end = PANEL_PADDING, top = 8.dp, bottom = 8.dp)) {
+        BoxWithConstraints {
+            val headerStyle = fittedHeaderStyle(table.columns, cellWidth = maxWidth / (LABEL_WEIGHT + table.columns.size) - 8.dp)
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
+                Box(Modifier.weight(LABEL_WEIGHT)) { corner?.invoke() }
+                table.columns.forEach { column ->
+                    Text(
+                        column,
+                        style = headerStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    )
+                }
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         table.rows.forEach { row ->
             val spoken = row.label + ": " + table.columns.zip(row.values).joinToString(", ") { (c, v) -> "$c, $v" }
-            // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth().padding(vertical = ROW_PADDING).clearAndSetSemantics {
-                        contentDescription = spoken
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    row.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(LABEL_WEIGHT),
-                )
-                row.values.forEach { value ->
-                    Text(value, style = SpecValueStyle, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 8.dp))
-                }
-            }
+            SpecLine(row.label, row.values, spoken, valueWeight = 1f)
+        }
+    }
+}
+
+/**
+ * One size for every column heading, shrunk only as far as the widest needs. At large text sizes "Modulating" would
+ * otherwise break mid-word, and shrinking each heading on its own left "On/off" and "Modulating" in two sizes.
+ */
+@Composable
+private fun fittedHeaderStyle(columns: List<String>, cellWidth: Dp): TextStyle {
+    val style = MaterialTheme.typography.labelMedium
+    val measurer = rememberTextMeasurer()
+    val available = with(LocalDensity.current) { cellWidth.roundToPx() }
+    return remember(columns, available, style, measurer) {
+        val widest = columns.maxOfOrNull { measurer.measure(it, style, maxLines = 1, softWrap = false).size.width } ?: 0
+        if (widest <= available || available <= 0) style else style.copy(fontSize = style.fontSize * (available.toFloat() / widest))
+    }
+}
+
+/** A label and its figures, read as one line by TalkBack, which would otherwise announce a bare figure. */
+@Composable
+private fun SpecLine(label: String, values: List<String>, spoken: String, valueWeight: Float) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = ROW_PADDING).clearAndSetSemantics { contentDescription = spoken },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(LABEL_WEIGHT),
+        )
+        values.forEach { value ->
+            Text(value, style = SpecValueStyle, textAlign = TextAlign.End, modifier = Modifier.weight(valueWeight).padding(start = 8.dp))
+        }
+    }
+}
+
+/** The rest of the data sheet, laid out like the table above it, with each value free to wrap at large text sizes. */
+@Composable
+private fun ExtraSpecs(rows: List<SpecRow>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Column(modifier = Modifier.padding(horizontal = PANEL_PADDING, vertical = 8.dp)) {
+            rows.forEach { row -> SpecLine(row.label, row.values, row.label + ": " + row.values.first(), valueWeight = 1f) }
         }
     }
 }
@@ -319,10 +384,14 @@ private fun ProductRow(product: ActuatorData, unit: TorqueDisplay, checks: List<
                 Modifier.fillMaxWidth()
                     .clickable(onClickLabel = if (open) "Hide details" else "Show details") { open = !open }
                     .padding(horizontal = PANEL_PADDING, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(product.partNumber, style = PartNumberStyle.copy(fontSize = 15.sp), modifier = Modifier.weight(1f))
+                Text(
+                    keepPartNumbersWhole(product.partNumber),
+                    style = PartNumberStyle.copy(fontSize = 15.sp),
+                    modifier = Modifier.weight(1f),
+                )
                 // Nothing else says the row opens, so the chevron does.
                 Icon(
                     if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
@@ -353,7 +422,9 @@ private fun ProductRow(product: ActuatorData, unit: TorqueDisplay, checks: List<
 @Composable
 private fun PanelHeader(title: String, unit: TorqueDisplay, onChange: (TorqueDisplay) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = PANEL_PADDING, end = 4.dp),
+        // The same inset as the card's content on every side, so the pill's border lines up with the rows below it
+        // instead of crowding the card's rounded corner.
+        modifier = Modifier.fillMaxWidth().padding(horizontal = PANEL_PADDING, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SectionLabel(title, modifier = Modifier.weight(1f))
@@ -415,13 +486,13 @@ private fun ComparisonSheet(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = "Close the table") }
                     Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    UnitSwitch(unit, onChange = onUnit, modifier = Modifier.padding(end = 6.dp))
+                    UnitSwitch(unit, onChange = onUnit, modifier = Modifier.padding(end = 4.dp))
                 }
                 FilterChip(
                     selected = onlyDifferences,
                     onClick = { onlyDifferences = !onlyDifferences },
                     label = { Text("Only differences") },
-                    modifier = Modifier.padding(horizontal = 14.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     stickyHeader(key = "models", contentType = "models") {
@@ -452,7 +523,7 @@ private fun ComparisonSheet(
                             Text(
                                 "These models have the same values in every row.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(14.dp),
+                                modifier = Modifier.padding(16.dp),
                             )
                         }
                     }
@@ -467,7 +538,7 @@ private fun SheetSection(title: String) {
     SectionLabel(
         title,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 6.dp).semantics { heading() },
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
     )
 }
 
@@ -527,31 +598,50 @@ private fun Notice(text: String) {
         color = MaterialTheme.colorScheme.onTertiaryContainer,
         modifier =
             Modifier.fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                 .background(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.shapes.small)
-                .padding(10.dp),
+                .padding(12.dp),
     )
 }
 
+/**
+ * The torque unit as one small pill that opens a menu. Three segments did not fit a table's corner at large text
+ * sizes, and the unit is changed rarely, so one tap more costs little.
+ */
 @Composable
 private fun UnitSwitch(unit: TorqueDisplay, onChange: (TorqueDisplay) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier = modifier.selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
-        TorqueDisplay.entries.forEach { option ->
-            val selected = option == unit
-            Text(
-                option.label,
-                style = MaterialTheme.typography.labelLarge,
-                color =
-                    if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier.minimumInteractiveComponentSize()
-                        .clip(MaterialTheme.shapes.small)
-                        .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                        .selectable(selected = selected, role = Role.RadioButton, onClick = { onChange(option) })
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+    var open by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        Row(
+            modifier =
+                Modifier.clip(MaterialTheme.shapes.small)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small)
+                    .clickable(onClickLabel = "Change the torque unit") { open = true }
+                    .heightIn(min = 32.dp)
+                    .padding(start = 10.dp, end = 4.dp)
+                    .semantics { contentDescription = "Torque unit, ${unit.label}" },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(unit.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
             )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            TorqueDisplay.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onChange(option)
+                        open = false
+                    },
+                    trailingIcon =
+                        if (option == unit) ({ Icon(Icons.Filled.Check, contentDescription = "Selected") }) else null,
+                )
+            }
         }
     }
 }
@@ -563,7 +653,7 @@ private fun ExpandRow(text: String, onToggle: () -> Unit) {
         text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = PANEL_PADDING, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = PANEL_PADDING, vertical = 10.dp),
     )
 }
 
@@ -576,18 +666,13 @@ private fun RowScope.RowLabel(text: String, fit: ColumnFit, color: Color = Mater
         text,
         style = MaterialTheme.typography.bodySmall,
         color = color,
-        modifier = width.padding(horizontal = PANEL_PADDING, vertical = 5.dp),
+        modifier = width.padding(horizontal = PANEL_PADDING, vertical = 4.dp),
     )
 }
 
 @Composable
 private fun ValueRow(row: SpecRow, partNumbers: List<String>, scroll: ScrollState, fit: ColumnFit) {
-    val spoken =
-        if (fit == ColumnFit.CONTENT) {
-            row.label + ": " + row.values.first()
-        } else {
-            row.label + ": " + partNumbers.zip(row.values).joinToString(", ") { (part, value) -> "$part, $value" }
-        }
+    val spoken = row.label + ": " + partNumbers.zip(row.values).joinToString(", ") { (part, value) -> "$part, $value" }
     // One announcement per row: TalkBack would otherwise read a bare figure with nothing saying what it measures.
     Row(modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }) {
         RowLabel(row.label, fit)
@@ -595,8 +680,8 @@ private fun ValueRow(row: SpecRow, partNumbers: List<String>, scroll: ScrollStat
     }
 }
 
-/** EQUAL shares the width, for two models. SCROLL gives each a fixed column. CONTENT is a single value. */
-private enum class ColumnFit { EQUAL, SCROLL, CONTENT }
+/** EQUAL shares the width, for two models. SCROLL gives each a fixed column. */
+private enum class ColumnFit { EQUAL, SCROLL }
 
 @Composable
 private fun RowScope.Cells(values: List<String>, scroll: ScrollState, fit: ColumnFit, style: TextStyle) {
@@ -611,7 +696,7 @@ private fun RowScope.ColumnsRow(
     fit: ColumnFit,
     content: @Composable RowScope.(cellModifier: RowScope.() -> Modifier) -> Unit,
 ) {
-    val padded = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+    val padded = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
     if (fit == ColumnFit.EQUAL) {
         // Weighted against the label, one share per model, so label and values divide the width between them.
         Row(modifier = Modifier.weight(PAIR_COLUMNS)) { content { Modifier.weight(1f).then(padded) } }
@@ -619,7 +704,7 @@ private fun RowScope.ColumnsRow(
         // Every row shares one scroll state, so a swipe on any row moves all the columns together.
         Box(modifier = Modifier.weight(1f)) {
             Row(modifier = Modifier.horizontalScroll(scroll)) {
-                content { if (fit == ColumnFit.SCROLL) Modifier.width(COLUMN_WIDTH).then(padded) else padded }
+                content { Modifier.width(COLUMN_WIDTH).then(padded) }
             }
         }
     }

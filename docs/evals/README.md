@@ -29,6 +29,8 @@ On that prompt `deepseek-v4.1-flash` passed 74 of 74 at 3.2 s and `gemini-3.5-fl
 
 On November 7, on a phone, an answer to a bare part number repeated every figure its card already showed. The prompt now leaves those numbers to the card (`06a904b16d2a`), and a 38th case pins it. `deepseek-v4.1-flash` passed 76 of 76 at 2.9 s and `gemini-3.5-flash-lite` 76 of 76 at 2.6 s, every case in both repetitions.
 
+On November 8, a probe of odd questions and human conversation patterns (corrections, referents, topic switches, closings) found answers that were correct but unhelpful. "Another one like it" for the 767C, the only model at 9000 Nm, fell back to the smallest model in the catalog. "How many models are there?" was refused, and "the biggest you have" was asked back three times. Code now answers both: `find_similar` returns the nearest models in torque on the same enclosure and supply, and the notes tool carries a catalog overview. Prompt rules cover "and the 762?", greetings and thanks later in a conversation, and saying which requirement was dropped. Nine cases pin them. On prompt `9341dfba1f5d`, `deepseek-v4.1-flash` passed 47 of 47 at 2.7 s and 1.9 model calls a turn. The nine new cases passed 27 of 27 over three repetitions.
+
 ## Voice
 
 Eight phrases with part numbers and requirements, in English and Spanish, spoken by Windows' synthetic voices, plus pure digital silence, near silence and white noise. Each model heard all 11 recordings three times, through the backend's own `TranscriptionService`. A speech run passes when every part number comes back exact and the requirements survive; a silent one passes when it ends in 422.
@@ -43,6 +45,8 @@ Eight phrases with part numbers and requirements, in English and Spanish, spoken
 | `mistralai/voxtral-small-24b-2507`, `openai/gpt-audio-mini` | 15 of 33 | | Refuses or mangles part numbers |
 
 A recording costs under USD 0.0003 on any of them, so accuracy decided.
+
+On November 8 we added a reproducible English set: 12 phrases in `tests/evals/voice.py`, spoken by Windows' David and Zira at 16 kHz and committed in `tests/fixtures/audio/voice`, so anyone can rerun them with `uv run python -m tests.evals.voice --repeat 3`. Part numbers are spoken character by character, as people read them off a label. `gemini-3.1-flash-lite` passed 30 of 36. Both failures were the same in all three runs, and both were runs of zeros: five spoken zeros came back as six (`761A00-113000000/A`), and the zero before the C in `11330C00` went missing. Neither reaches an answer. The lookup does not find the number, and its first suggestion is the one that was spoken, which the app offers as a button.
 
 ## Ingestion
 

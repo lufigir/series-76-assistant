@@ -7,10 +7,10 @@ from src.agent.schemas import TurnResult
 from src.auth.schemas import CurrentUser
 from src.conversations.repository import ConversationRepository
 from src.conversations.schemas import ConversationResponse, MessageDebug, MessageView, Page, SessionSummary
+from src.conversations.titles import question_title, settled_title
 from src.core.errors import AppError
 from src.core.logging import logger
 
-MAX_TITLE_LENGTH = 80
 # The lease outlives the turn's deadline, so it only ever expires after a crash.
 LEASE_MARGIN = timedelta(seconds=15)
 RATE_WINDOW = timedelta(minutes=1)
@@ -51,7 +51,7 @@ class ConversationService:
         conversation_id = uuid.uuid4()
         await self._conversations.release_connection()
         result = await self._run(conversation_id, query)
-        return await self._save(conversation_id, user, query[:MAX_TITLE_LENGTH], query, result)
+        return await self._save(conversation_id, user, query, result, new=True)
 
     async def _continue(self, user: CurrentUser, conversation_id: uuid.UUID, query: str) -> ConversationResponse:
         lease = timedelta(seconds=self._turn_timeout_seconds) + LEASE_MARGIN
@@ -61,7 +61,7 @@ class ConversationService:
             raise NotFoundError("Conversation not found")
         try:
             result = await self._run(conversation_id, query)
-            return await self._save(conversation_id, user, None, query, result)
+            return await self._save(conversation_id, user, query, result, new=False)
         finally:
             await self._conversations.release(conversation_id)
 
@@ -77,12 +77,22 @@ class ConversationService:
             raise AppError(503, "The assistant is not available right now. Please try again.") from error
 
     async def _save(
-        self, conversation_id: uuid.UUID, user: CurrentUser, title: str | None, query: str, result: TurnResult
+        self, conversation_id: uuid.UUID, user: CurrentUser, query: str, result: TurnResult, *, new: bool
     ) -> ConversationResponse:
-        message_id = await self._conversations.save_turn(conversation_id, user.id, title, query, result)
+        settled = settled_title(result)
+        message_id, title = await self._conversations.save_turn(
+            conversation_id,
+            user.id,
+            new=new,
+            title=settled or question_title(query),
+            settled=settled is not None,
+            query=query,
+            result=result,
+        )
         return ConversationResponse(
             session_id=conversation_id,
             message_id=message_id,
+            title=title,
             answer=result.answer,
             outcome=result.outcome,
             products=result.products,

@@ -428,7 +428,7 @@ async def test_sessions_list_only_your_own_most_recent_first(
 
     sessions = (await client.get("/api/sessions", headers=headers)).json()["items"]
     assert [session["id"] for session in sessions[:2]] == [second, first]
-    assert set(sessions[0]) == {"id", "title", "date", "preview", "part_numbers"}
+    assert set(sessions[0]) == {"id", "title", "date", "preview"}
     assert sessions[0]["title"] == "Second conversation"
 
     others = (await client.get("/api/sessions", headers=other_headers)).json()["items"]
@@ -451,7 +451,40 @@ async def test_a_session_previews_its_latest_answer(
 
     assert session["id"] == session_id
     assert session["preview"] == RIGHT
-    assert session["part_numbers"] == [PART]
+
+
+async def test_the_first_turn_that_finds_a_model_names_the_conversation_for_good(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = ["Hello! Which actuator?"]
+    first = (await ask(client, headers, "hola")).json()
+    assert first["title"] == "hola"
+
+    chat_model.script = [call("get_actuator", part_number=PART), RIGHT]
+    second = (await ask(client, headers, "and its torque?", first["session_id"])).json()
+    assert second["title"] == PART
+
+    chat_model.script = [call("find_actuators", changes={"enclosure": "explosionproof"}), "These fit."]
+    third = (await ask(client, headers, "explosionproof ones?", first["session_id"])).json()
+    assert third["title"] == PART
+
+    session = (await client.get("/api/sessions", headers=headers)).json()["items"][0]
+    assert session["title"] == PART
+
+
+async def test_similar_models_come_as_cards_after_the_one_named(
+    client: AsyncClient, headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = [call("find_similar", part_number="767C00-11320000/A"), "The 767B00-11320000/A is closest."]
+    body = (await ask(client, headers, "another one like the 767C00-11320000/A?")).json()
+
+    assert body["outcome"] == "answered"
+    assert [product["part_number"] for product in body["products"]] == [
+        "767C00-11320000/A",
+        "767B00-11320000/A",
+        "767A00-11320000/A",
+        "766B00-11320000/A",
+    ]
 
 
 async def test_someone_elses_conversation_does_not_exist_for_you(

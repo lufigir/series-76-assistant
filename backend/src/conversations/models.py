@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, String, Text, desc, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Identity, Index, String, Text, desc, false, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,8 @@ class Conversation(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(80))
+    # False while the title is still the first question; the first turn that names a model or requirements settles it.
+    title_settled: Mapped[bool] = mapped_column(Boolean, server_default=false())
     # A lease instead of a held lock: no connection stays open during a model call, and a crash cannot block forever.
     busy_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

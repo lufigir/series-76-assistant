@@ -54,9 +54,9 @@ Send the returned `session_id` with the next request to continue that conversati
 | `POST /api/auth/login` | Email and password to a token |
 | `GET /api/auth/me` | The user behind a token |
 | `POST /api/conversation` | One turn |
-| `GET /api/sessions` | The user's conversations, newest first: id, title, date, and a preview and part numbers from the latest answer |
+| `GET /api/sessions` | The user's conversations, newest first: id, title, date, and a preview of the latest answer |
 | `GET /api/sessions/{id}/messages` | History to resume a conversation, latest messages first in pages, each page in reading order |
-| `GET /api/actuators/part-numbers` | Every part number with its enclosure and supply, which the app uses to complete and build part numbers |
+| `GET /api/actuators/part-numbers` | Every part number with its enclosure, supply and top torque, which the app uses to complete and build part numbers |
 | `GET /api/messages/{id}/debug` | Tools, parameters, returned data, model, tokens, cost and latency of one answer |
 | `POST /api/transcriptions` | Audio to text |
 | `GET /health` | Liveness |
@@ -66,6 +66,7 @@ The two lists differ from the shape the assessment suggests: each returns `{ ite
 Beyond the fixed `session_id` and `answer`, a turn returns:
 
 - `message_id`, which opens the debug view of that answer.
+- `title`, the conversation's name. It starts as the first question, and the first turn that finds a model or runs a search renames it for good, such as `761A00-11300000/A` or `Explosionproof · 220 V · ≥ 500 Nm`. Code writes it, so it never carries a number the tables lack.
 - `outcome`: `answered`, `recommendation`, `no_match`, `invalid_part_number`, `missing_data`, `ambiguous` or `out_of_scope`. The app labels each answer with it.
 - `products` and `alternatives`, the cards the app draws. Each alternative lists the requirements it misses.
 - `matches`, the part numbers in `products` that met the requirements. A card can also come from a lookup, which checked none of them.

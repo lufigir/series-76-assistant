@@ -21,6 +21,7 @@ class ConversationResponse(BaseModel):
 
     session_id: uuid.UUID
     message_id: uuid.UUID
+    title: str
     answer: str
     outcome: Outcome
     products: list[ActuatorData]
@@ -32,13 +33,12 @@ class ConversationResponse(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    """A row of the conversation list. The preview and part numbers come from its latest answer."""
+    """A row of the conversation list. The preview comes from its latest answer."""
 
     id: uuid.UUID
     title: str
     date: datetime
     preview: str | None
-    part_numbers: list[str]
 
 
 class MessageView(BaseModel):

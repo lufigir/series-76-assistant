@@ -47,12 +47,13 @@ fun powerSupplyOptions(catalog: List<CatalogEntry>, choice: PartNumberChoice): L
         .distinct()
         .sortedBy { POWER_SUPPLY_ORDER.indexOf(it) }
 
-fun builtPartNumbers(catalog: List<CatalogEntry>, choice: PartNumberChoice): List<String> =
-    catalog
-        .filter {
-            size(it.partNumber) == choice.size && it.enclosure == choice.enclosure && it.powerSupply == choice.powerSupply
-        }
-        .map { it.partNumber }
+fun builtPartNumbers(catalog: List<CatalogEntry>, choice: PartNumberChoice): List<CatalogEntry> =
+    catalog.filter {
+        size(it.partNumber) == choice.size && it.enclosure == choice.enclosure && it.powerSupply == choice.powerSupply
+    }
+
+/** Models left after the three choices differ only in their ratings, so the top torque is what picks one. */
+fun torqueHint(entry: CatalogEntry): String = entry.maxTorqueNm?.let { "Up to $it Nm" } ?: "N/A in the tables"
 
 // The data sheet's own order, from the most common supply to the least.
 private val POWER_SUPPLY_ORDER =

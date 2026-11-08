@@ -1,6 +1,8 @@
 package com.series76.assistant.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +39,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.series76.assistant.data.remote.CatalogEntry
+import com.series76.assistant.ui.components.keepPartNumbersWhole
 import com.series76.assistant.ui.theme.PartNumberStyle
 
 /** Part numbers the end of the draft could become. One tap puts the whole number in place of what was typed. */
@@ -77,11 +80,11 @@ internal fun PartNumberBuilderSheet(catalog: List<CatalogEntry>, onPick: (String
             modifier =
                 Modifier.fillMaxWidth()
                     .verticalScroll(scroll)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 24.dp)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
                     .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 4.dp)) {
                 Text("Build a part number", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
                 Text(
                     "Only combinations in the data tables are offered.",
@@ -89,7 +92,6 @@ internal fun PartNumberBuilderSheet(catalog: List<CatalogEntry>, onPick: (String
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Preview(choice)
             Step(1, "Size", sizeOptions(catalog), size, label = { it }) {
                 size = it
                 enclosure = null
@@ -107,9 +109,9 @@ internal fun PartNumberBuilderSheet(catalog: List<CatalogEntry>, onPick: (String
             if (powerSupply != null) {
                 val built = builtPartNumbers(catalog, choice)
                 StepTitle(4, if (built.size == 1) "Part number" else "Pick a model")
-                built.forEach { partNumber ->
+                built.forEach { entry ->
                     Surface(
-                        onClick = { onPick(partNumber) },
+                        onClick = { onPick(entry.partNumber) },
                         shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.fillMaxWidth(),
@@ -117,13 +119,20 @@ internal fun PartNumberBuilderSheet(catalog: List<CatalogEntry>, onPick: (String
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text(
-                                partNumber,
-                                style = PartNumberStyle,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.weight(1f),
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    keepPartNumbersWhole(entry.partNumber),
+                                    style = PartNumberStyle,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                                Text(
+                                    torqueHint(entry),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
                             Text(
                                 "Add",
                                 style = MaterialTheme.typography.labelLarge,
@@ -137,35 +146,20 @@ internal fun PartNumberBuilderSheet(catalog: List<CatalogEntry>, onPick: (String
     }
 }
 
-/** What has been chosen so far, read as one line, so the reader sees the number take shape. */
-@Composable
-private fun Preview(choice: PartNumberChoice) {
-    val parts =
-        listOfNotNull(
-            choice.size,
-            choice.enclosure?.let(::enclosureLabel),
-            choice.powerSupply?.let(::powerSupplyLabel),
-        )
-    Text(
-        if (parts.isEmpty()) "Start with the size" else parts.joinToString("  ·  "),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier =
-            Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.medium)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-    )
-}
-
 @Composable
 private fun StepTitle(number: Int, title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    // As tall as the Change button beside an answered step, so open and folded steps keep one rhythm.
+    Row(
+        modifier = Modifier.heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text(
             "$number",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
-            modifier = Modifier.size(22.dp).background(MaterialTheme.colorScheme.primary, CircleShape).wrapContentHeight(),
+            modifier = Modifier.size(24.dp).background(MaterialTheme.colorScheme.primary, CircleShape).wrapContentHeight(),
         )
         Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.semantics { heading() })
     }
@@ -185,13 +179,14 @@ private fun Step(
     if (selected != null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(modifier = Modifier.weight(1f)) { StepTitle(number, "$title: ${label(selected)}") }
-            TextButton(onClick = { onSelect(null) }) { Text("Change") }
+            // Shifted by the button's own padding, so the word lines up with the edge of the content above it.
+            TextButton(onClick = { onSelect(null) }, modifier = Modifier.offset(x = 12.dp)) { Text("Change") }
         }
         return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column {
         StepTitle(number, title)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { option ->
                 FilterChip(selected = false, onClick = { onSelect(option) }, label = { Text(label(option)) })
             }

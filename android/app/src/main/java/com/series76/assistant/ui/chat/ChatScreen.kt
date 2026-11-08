@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -150,18 +151,37 @@ fun ChatScreen(
     // tall when a turn is placed and then shrinks to what the turn leaves free, which keeps the question where it is.
     val screenHeight = LocalWindowInfo.current.containerSize.height
     var tailRoom by remember { mutableIntStateOf(0) }
+    // Once the reader scrolls the room out of sight, the question has been read and the room only lets the list run on
+    // into blank space, so it goes until the next turn. It goes while out of sight, so nothing on screen moves.
+    var roomReleased by remember { mutableStateOf(false) }
+    val currentTail by rememberUpdatedState(tail)
     LaunchedEffect(listState, anchor) {
-        snapshotFlow { fittedTailRoom(listState.layoutInfo, anchor) }
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            val settled = placedTail == currentTail && !listState.isScrollInProgress
+            if (settled && layout.visibleItemsInfo.none { it.key == TAIL_ROOM }) RELEASED_ROOM else fittedTailRoom(layout, anchor)
+        }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect { tailRoom = it }
+            .collect {
+                if (it == RELEASED_ROOM) roomReleased = true
+                tailRoom = if (roomReleased) 0 else it
+            }
     }
     LaunchedEffect(tail) {
         if (itemCount > 0 && tail != placedTail) {
-            tailRoom = screenHeight
-            // One frame, so the list measures the new room before it scrolls into it.
+            // One frame without room first: a conversation that fits on the screen as it is has nothing to scroll past,
+            // and pinning it would only let the list run on into blank space.
+            roomReleased = true
+            tailRoom = 0
             withFrameNanos {}
-            if (placedTail == null) listState.scrollToItem(anchor) else listState.animateScrollToItem(anchor)
+            if (listState.canScrollBackward || listState.canScrollForward) {
+                roomReleased = false
+                tailRoom = screenHeight
+                // One frame, so the list measures the new room before it scrolls into it.
+                withFrameNanos {}
+                if (placedTail == null) listState.scrollToItem(anchor) else listState.animateScrollToItem(anchor)
+            }
         }
         if (itemCount > 0) placedTail = tail
     }
@@ -334,6 +354,9 @@ private fun JumpToLatest(visible: Boolean, onClick: () -> Unit, modifier: Modifi
  * The room that lets the latest question sit at the top with the list scrolled to its end: what the viewport has left
  * after the question and everything below it. Null while the question is off screen, when it cannot be measured.
  */
+/** Marks the room under the latest turn as scrolled out of sight, apart from any height the room can take. */
+private const val RELEASED_ROOM = -1
+
 private fun fittedTailRoom(layout: LazyListLayoutInfo, anchor: Int): Int? {
     val question = layout.visibleItemsInfo.firstOrNull { it.index == anchor } ?: return null
     val last = layout.visibleItemsInfo.lastOrNull { it.key != TAIL_ROOM } ?: return null

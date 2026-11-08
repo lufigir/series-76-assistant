@@ -18,6 +18,7 @@ import com.series76.assistant.data.remote.ValidationTrace
 import com.series76.assistant.ui.components.IconBadge
 import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.SpecValueStyle
+import com.series76.assistant.ui.theme.TopBarHeight
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,6 +107,7 @@ fun DebugScreen(uiState: DebugUiState, onRetry: () -> Unit, onBack: () -> Unit) 
     Scaffold(
         topBar = {
             TopAppBar(
+                expandedHeight = TopBarHeight,
                 title = { Text("Debug") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -171,8 +173,8 @@ private fun DebugContent(debug: MessageDebug, padding: PaddingValues) {
 private fun Metric(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier =
-            modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = SpecValueStyle.copy(fontSize = 18.sp, lineHeight = 24.sp))
@@ -187,8 +189,8 @@ private fun Validation(validation: ValidationTrace) {
         modifier =
             Modifier.fillMaxWidth()
                 .background(if (clean) colors.primaryContainer else colors.tertiaryContainer, MaterialTheme.shapes.large)
-                .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
@@ -196,7 +198,7 @@ private fun Validation(validation: ValidationTrace) {
             contentDescription = null,
             tint = if (clean) colors.onPrimaryContainer else colors.onTertiaryContainer,
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 if (clean) "Every number was backed by a tool result" else "The validator stepped in",
                 style = MaterialTheme.typography.titleSmall,
@@ -230,7 +232,7 @@ private fun ToolCard(tool: ToolTrace) {
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconBadge(Icons.Filled.Build, size = 36.dp)
                 Column(modifier = Modifier.weight(1f)) {

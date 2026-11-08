@@ -23,7 +23,13 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -81,6 +87,28 @@ fun PulsingDot(color: Color = MaterialTheme.colorScheme.primary) {
             label = "opacity",
         )
     Box(Modifier.size(8.dp).alpha(opacity).background(color, CircleShape))
+}
+
+/**
+ * Whether a placeholder for [loading] should be on screen. A load shorter than [delayMillis] never shows one, and one
+ * that does appear stays at least [minShowMillis], so a fast answer does not flash a skeleton for a frame or two. The
+ * same rule as AndroidX's ContentLoadingProgressBar, with a shorter delay because the list loads from a nearby server.
+ */
+@Composable
+fun rememberPlaceholderVisible(loading: Boolean, delayMillis: Long = 300, minShowMillis: Long = 500): Boolean {
+    var visible by remember { mutableStateOf(false) }
+    var shownAt by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(loading) {
+        if (loading && !visible) {
+            delay(delayMillis)
+            visible = true
+            shownAt = System.currentTimeMillis()
+        } else if (!loading && visible) {
+            delay((shownAt + minShowMillis - System.currentTimeMillis()).coerceAtLeast(0))
+            visible = false
+        }
+    }
+    return visible
 }
 
 /** Placeholder rows shaped like the list that is about to load, so the screen does not jump when it arrives. */

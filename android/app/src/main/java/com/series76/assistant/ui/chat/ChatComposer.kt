@@ -94,7 +94,7 @@ internal fun Composer(
 
     Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()) {
         Column(
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             uiState.voiceError?.let {
@@ -102,7 +102,7 @@ internal fun Composer(
                     it,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 6.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
             AnimatedContent(
@@ -114,7 +114,7 @@ internal fun Composer(
                     VoiceState.RECORDING -> RecordingBar(onStop = onToggleRecording, onCancel = onCancelRecording)
                     VoiceState.TRANSCRIBING -> TranscribingBar()
                     VoiceState.IDLE ->
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             val completions = remember(draft, uiState.catalog) { completions(draft, uiState.catalog) }
                             if (completions.isNotEmpty()) {
                                 CompletionRow(completions, onPick = { onDraftChange(complete(draft, it)) })
@@ -137,8 +137,8 @@ internal fun Composer(
 private const val COUNTER_MARGIN = 200
 
 // One shape for the three states of the bar, so typing, listening and transcribing read as the same control.
-private val BAR_SHAPE = RoundedCornerShape(28.dp)
-private val BAR_HEIGHT = 56.dp
+private val BAR_SHAPE = RoundedCornerShape(24.dp)
+private val BAR_HEIGHT = 48.dp
 
 @Composable
 private fun Bar(content: @Composable RowScope.() -> Unit) {
@@ -176,7 +176,7 @@ private fun TextComposer(
             TextField(
                 value = draft,
                 onValueChange = onDraftChange,
-                placeholder = { Text("Ask about an actuator", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text("Ask a question", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors =
                     TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,

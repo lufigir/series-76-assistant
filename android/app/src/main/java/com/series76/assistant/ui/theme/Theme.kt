@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.series76.assistant.R
@@ -112,36 +113,47 @@ private fun plexSans(weight: Int) =
 private val PlexSans = FontFamily(plexSans(400), plexSans(500), plexSans(600))
 
 /** Every Plex Sans digit has the same width, so figures in a column line up without a monospaced face. */
-val SpecValueStyle = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 19.sp)
+val SpecValueStyle = TextStyle(fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp)
 
 /** The slashed zero keeps 0 and O apart in a code someone may copy by hand. */
 val PartNumberStyle =
     TextStyle(
         fontFamily = PlexSans,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         fontFeatureSettings = "zero",
     )
 
+// One step below Material's defaults: engineers scan figures here more than they read prose, and a phone set to a
+// large font scale multiplies every size, so the default scale left room for little more than one answer per screen.
 private val AppTypography =
     Typography().run {
         Typography(
             displaySmall = displaySmall.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold),
             headlineLarge = headlineLarge.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold),
-            headlineMedium = headlineMedium.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold),
+            headlineMedium = headlineMedium.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 32.sp),
             headlineSmall = headlineSmall.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold),
-            titleLarge = titleLarge.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold),
-            titleMedium = titleMedium.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium),
-            titleSmall = titleSmall.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium),
-            bodyLarge = bodyLarge.copy(fontFamily = PlexSans, lineHeight = 24.sp, letterSpacing = 0.1.sp),
-            bodyMedium = bodyMedium.copy(fontFamily = PlexSans, letterSpacing = 0.1.sp),
-            bodySmall = bodySmall.copy(fontFamily = PlexSans, letterSpacing = 0.2.sp),
+            titleLarge = titleLarge.copy(fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
+            titleMedium = titleMedium.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 22.sp),
+            titleSmall = titleSmall.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
+            bodyLarge = bodyLarge.copy(fontFamily = PlexSans, fontSize = 15.sp, lineHeight = 22.sp, letterSpacing = 0.1.sp),
+            bodyMedium = bodyMedium.copy(fontFamily = PlexSans, fontSize = 13.sp, lineHeight = 19.sp, letterSpacing = 0.1.sp),
+            bodySmall = bodySmall.copy(fontFamily = PlexSans, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.2.sp),
             labelLarge = labelLarge.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium),
             labelMedium = labelMedium.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium),
             labelSmall = labelSmall.copy(fontFamily = PlexSans, fontWeight = FontWeight.Medium),
         )
     }
+
+/** The widest the conversation gets. On a tablet, longer lines and wider tables only spread the figures apart. */
+val ReadingWidth = 720.dp
+
+/** Room on each side that centers [ReadingWidth] of content on a wide screen, and none on a phone. */
+fun sideRoom(available: Dp): Dp = ((available - ReadingWidth) / 2).coerceAtLeast(0.dp)
+
+/** Below Material's 64 dp: the bars hold a title and an icon or two, and the answers need the height more. */
+val TopBarHeight = 52.dp
 
 @Composable
 fun Series76Theme(content: @Composable () -> Unit) {

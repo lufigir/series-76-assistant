@@ -61,6 +61,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 "seed.py" = ["S105", "S106", "T20"]
 "tests/**" = ["S101", "S105", "S106"]
 "tests/evals/run.py" = ["S101", "S105", "S106", "T20"]
+# Generating the recordings calls Windows' speech engine through PowerShell, with text from this file only.
+"tests/evals/voice.py" = ["S101", "S603", "S607", "T20"]
 
 [tool.mypy]
 files = ["src", "seed.py"]

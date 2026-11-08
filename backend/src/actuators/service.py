@@ -1,7 +1,10 @@
-from src.actuators.matching import MAX_MATCHES, SUPPLY_TABLES, rank
+from typing import Any
+
+from src.actuators.matching import MAX_MATCHES, SUPPLY_TABLES, nearest, rank
+from src.actuators.overview import overview
 from src.actuators.part_numbers import names_a_number, normalize, similar_to, starting_with
 from src.actuators.repository import ActuatorRepository
-from src.actuators.schemas import CatalogEntry, LookupResult, Requirements, SearchResult
+from src.actuators.schemas import CatalogEntry, LookupResult, Requirements, SearchResult, SimilarResult
 
 # Iyengar and Lepper's limited set held 6 options, where 24 or 30 turned people away.
 MAX_AMBIGUOUS_CANDIDATES = 6
@@ -14,11 +17,18 @@ class ActuatorService:
     async def catalog(self) -> list[CatalogEntry]:
         return await self._actuators.catalog()
 
+    async def overview(self) -> dict[str, Any]:
+        return overview(await self._actuators.catalog())
+
     async def lookup(self, query: str) -> LookupResult:
         part_number = normalize(query)
         if part_number is None:
             catalog = await self._actuators.part_numbers()
             candidates = starting_with(query, catalog)
+            # "766A" fits a single model, so naming it is naming that model, not a choice to ask about.
+            if len(candidates) == 1:
+                part_number = candidates[0]
+        if part_number is None:
             if not candidates and names_a_number(query):
                 return LookupResult(status="invalid_format", query=query, suggestions=similar_to(query, catalog))
             # "761" fits 14 models and "76" all 68. That many buttons is a catalog, so the answer asks for more digits.
@@ -31,6 +41,14 @@ class ActuatorService:
             return LookupResult(status="not_found", query=query, suggestions=suggestions)
         status = "not_available" if actuator.not_available else "found"
         return LookupResult(status=status, query=query, actuator=actuator)
+
+    async def similar(self, query: str) -> SimilarResult:
+        reference = await self.lookup(query)
+        if reference.status != "found" or reference.actuator is None:
+            return SimilarResult(reference=reference)
+        actuator = reference.actuator
+        siblings = await self._actuators.search(actuator.enclosure, [actuator.power_supply])
+        return SimilarResult(reference=reference, similar=nearest(actuator, siblings))
 
     async def find(self, requirements: Requirements) -> SearchResult:
         unspecified = requirements.unspecified_criteria()

@@ -167,11 +167,22 @@ class LookupResult(BaseModel):
     suggestions: list[str] = []
 
 
+class SimilarResult(BaseModel):
+    """The lookup of the model the user named and, when it has data, the models most like it."""
+
+    reference: LookupResult
+    similar: list[ActuatorData] = []
+
+
 class CatalogEntry(BaseModel):
-    """What a client needs to suggest and build part numbers, without the ratings."""
+    """What a client needs to suggest and build part numbers, plus the one figure that tells siblings apart.
+
+    `max_torque_nm` is the highest rated torque, and None for an N/A row, which publishes no ratings.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     part_number: str
     enclosure: Enclosure
     power_supply: PowerSupply
+    max_torque_nm: int | None

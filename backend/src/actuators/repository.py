@@ -1,9 +1,9 @@
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.actuators.enums import Enclosure, PowerSupply
-from src.actuators.models import Actuator
+from src.actuators.models import Actuator, ActuatorRating
 from src.actuators.schemas import ActuatorData, CatalogEntry
 
 
@@ -24,7 +24,15 @@ class ActuatorRepository:
 
     async def catalog(self) -> list[CatalogEntry]:
         rows = await self._session.execute(
-            select(Actuator.part_number, Actuator.enclosure, Actuator.power_supply).order_by(Actuator.part_number)
+            select(
+                Actuator.part_number,
+                Actuator.enclosure,
+                Actuator.power_supply,
+                func.max(ActuatorRating.torque_nm).label("max_torque_nm"),
+            )
+            .outerjoin(Actuator.ratings)
+            .group_by(Actuator.id)
+            .order_by(Actuator.part_number)
         )
         return [CatalogEntry.model_validate(row) for row in rows]
 

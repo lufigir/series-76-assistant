@@ -7,7 +7,9 @@ from seed import TEST_USERS
 EMAIL, PASSWORD = next(iter(TEST_USERS.items()))
 
 
-async def test_the_catalog_lists_every_part_number_with_its_enclosure_and_supply(client: AsyncClient) -> None:
+async def test_the_catalog_lists_every_part_number_with_its_enclosure_supply_and_top_torque(
+    client: AsyncClient,
+) -> None:
     token = (await client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})).json()["token"]
 
     response = await client.get("/api/actuators/part-numbers", headers={"Authorization": f"Bearer {token}"})
@@ -20,6 +22,21 @@ async def test_the_catalog_lists_every_part_number_with_its_enclosure_and_supply
         "part_number": "761X30-11300000/A",
         "enclosure": "explosionproof",
         "power_supply": "110v_single_phase",
+        "max_torque_nm": 80,
+    } in catalog
+    # Siblings share size, enclosure and supply, so torque is what tells them apart in the builder.
+    assert {
+        "part_number": "761B00-11300000/A",
+        "enclosure": "weatherproof",
+        "power_supply": "110v_single_phase",
+        "max_torque_nm": 100,
+    } in catalog
+    # An N/A row publishes no ratings, which is missing data and not a torque of zero.
+    assert {
+        "part_number": "761A00-11330C00/A",
+        "enclosure": "weatherproof",
+        "power_supply": "220v_three_phase",
+        "max_torque_nm": None,
     } in catalog
 
 

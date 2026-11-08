@@ -10,6 +10,7 @@ from src.actuators.schemas import ActuatorData, Candidate, Electrical, Rating, R
 
 MAX_MATCHES = 5
 MAX_ALTERNATIVES = 3
+MAX_SIMILAR = 3
 # A miss with no numeric distance, such as a certification, counts like being 50 % away on a number.
 CATEGORICAL_GAP = 0.5
 
@@ -142,3 +143,23 @@ def rank(actuators: list[ActuatorData], requirements: Requirements) -> tuple[lis
     if matches:
         return matches, []
     return [], sorted(candidates, key=_distance)[:MAX_ALTERNATIVES]
+
+
+def _top_torque_nm(actuator: ActuatorData) -> float:
+    return max((rating.torque_nm for rating in actuator.ratings), default=0)
+
+
+def nearest(reference: ActuatorData, actuators: list[ActuatorData]) -> list[ActuatorData]:
+    """
+    The models most like the reference: same enclosure and supply table, closest top torque, ties to the smaller.
+    "Similar" asks for neighbors, which smallest-first ranking would never surface for a large model.
+    """
+    siblings = [
+        actuator
+        for actuator in actuators
+        if actuator.part_number != reference.part_number
+        and not actuator.not_available
+        and (actuator.enclosure, actuator.power_supply) == (reference.enclosure, reference.power_supply)
+    ]
+    target = _top_torque_nm(reference)
+    return sorted(siblings, key=lambda a: (abs(_top_torque_nm(a) - target), _top_torque_nm(a)))[:MAX_SIMILAR]

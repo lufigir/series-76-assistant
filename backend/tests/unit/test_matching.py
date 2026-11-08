@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from src.actuators.enums import Enclosure, PowerSupply
-from src.actuators.matching import MAX_ALTERNATIVES, SUPPLY_TABLES, evaluate, rank
+from src.actuators.matching import MAX_ALTERNATIVES, MAX_SIMILAR, SUPPLY_TABLES, evaluate, nearest, rank
 from src.actuators.schemas import ActuatorData, Candidate, Requirements
 
 
@@ -202,3 +202,22 @@ def test_a_row_printed_as_na_is_never_a_candidate(catalog: list[ActuatorData]) -
     actuator = next(a for a in catalog if a.part_number == "761A00-11330C00/A")
     assert actuator.not_available
     assert evaluate(actuator, Requirements(enclosure=Enclosure.WEATHERPROOF)) is None
+
+
+def test_similar_models_are_the_nearest_in_torque(catalog: list[ActuatorData]) -> None:
+    # 767C gives 9000 Nm, the most of any weatherproof 220 V model, so its neighbors all sit below it.
+    reference = next(actuator for actuator in catalog if actuator.part_number == "767C00-11320000/A")
+    similar = [actuator.part_number for actuator in nearest(reference, catalog)]
+    assert similar == ["767B00-11320000/A", "767A00-11320000/A", "766B00-11320000/A"]
+
+
+def test_similar_models_keep_the_enclosure_and_the_supply_and_skip_rows_without_data(
+    catalog: list[ActuatorData],
+) -> None:
+    for reference in catalog:
+        similar = nearest(reference, catalog)
+        assert len(similar) <= MAX_SIMILAR
+        assert reference not in similar
+        for actuator in similar:
+            assert (actuator.enclosure, actuator.power_supply) == (reference.enclosure, reference.power_supply)
+            assert not actuator.not_available

@@ -1,12 +1,8 @@
 package com.series76.assistant.ui.chat
 
 import com.series76.assistant.ui.components.keepPartNumbersWhole
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
@@ -86,6 +81,10 @@ import com.series76.assistant.data.remote.UnmetRequirement
 import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.PartNumberStyle
 import com.series76.assistant.ui.theme.SpecValueStyle
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Info
 
 private val LABEL_WIDTH = 124.dp
 
@@ -339,7 +338,10 @@ private fun ExtraSpecs(rows: List<SpecRow>, modifier: Modifier = Modifier) {
     }
 }
 
-/** Three or more models: one row each, opened in place, with a table one tap away for comparing them. */
+/**
+ * Three or more models: one row each, opened in place. Comparing them opens the full table at once, because an inline
+ * table with three or more columns would only scroll sideways before the reader opened the full one anyway.
+ */
 @Composable
 private fun ProductList(
     title: String,
@@ -348,28 +350,18 @@ private fun ProductList(
     checks: List<RequirementCheck>,
 ) {
     var unit by rememberSaveable { mutableStateOf(defaultUnit) }
-    var asTable by rememberSaveable { mutableStateOf(false) }
+    var showTable by rememberSaveable { mutableStateOf(false) }
 
-    AnimatedContent(
-        targetState = asTable,
-        transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
-        label = "results",
-    ) { table ->
-        if (table) {
-            Column {
-                ComparisonTable(title, products, unit, checks)
-                TextButton(onClick = { asTable = false }) { Text("Back to the list") }
-            }
-        } else {
-            DataPanel {
-                PanelHeader(title, unit, onChange = { unit = it })
-                products.forEachIndexed { index, product ->
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    ProductRow(product, unit, singleModel(checks, index))
-                }
-                ExpandRow("Compare in a table", onToggle = { asTable = true })
-            }
+    DataPanel {
+        PanelHeader(title, unit, onChange = { unit = it })
+        products.forEachIndexed { index, product ->
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ProductRow(product, unit, singleModel(checks, index))
         }
+        ExpandRow("Compare in a table", onToggle = { showTable = true })
+    }
+    if (showTable) {
+        ComparisonSheet(title, products, unit, checks, ColumnFit.SCROLL, onUnit = { unit = it }, onClose = { showTable = false })
     }
 }
 
@@ -533,20 +525,35 @@ private fun ComparisonSheet(
     }
 }
 
+/** A mark per group, so a reader scrolling a long table finds torque or current by shape before reading a word. */
+@Composable
+private fun sectionIcon(title: String): Painter? =
+    when (title) {
+        "General" -> rememberVectorPainter(Icons.Outlined.Info)
+        "Torque and duty" -> painterResource(R.drawable.ic_torque)
+        "Speed and current" -> painterResource(R.drawable.ic_bolt)
+        "Operation" -> rememberVectorPainter(Icons.Filled.Refresh)
+        else -> null
+    }
+
 @Composable
 private fun SheetSection(title: String) {
-    SectionLabel(
-        title,
-        color = MaterialTheme.colorScheme.onSurface,
+    Row(
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        sectionIcon(title)?.let { icon ->
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+        }
+        SectionLabel(title, color = MaterialTheme.colorScheme.onSurface)
+    }
 }
 
 @Composable
 private fun ModelHeader(partNumbers: List<String>, scroll: ScrollState, fit: ColumnFit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RowLabel("Model", fit)
-        val shown = if (fit == ColumnFit.EQUAL) partNumbers.map(::partNumberOnTwoLines) else partNumbers
+        val shown = partNumbers.map(::partNumberOnTwoLines)
         val style = PartNumberStyle.copy(fontSize = 13.sp, lineHeight = 17.sp)
         // Two lines at most, broken at the dash; at large text sizes the face shrinks rather than break mid-code.
         ColumnsRow(scroll, fit) { cellModifier ->

@@ -20,6 +20,8 @@ KNOWN = known_values([ROW], ["do you have 480 V models?"])
         "It delivers 150 Nm.",
         "It delivers 1,330 in-lb.",
         "Entrega 1.330 in-lb.",
+        "Entrega 1 330 in-lb.",
+        "Entrega 1\u202f330 in-lb y 7,4 A.",
         "It delivers 1330 in-lb and draws 15 W.",
         "The current is 7.40 A.",
         "La corriente es 7,4 A.",
@@ -54,6 +56,8 @@ def test_backed_answers_pass(answer: str) -> None:
         ("The duty cycle is 9%.", "9"),
         ("The current is 7.5 A.", "7.5"),
         ("Around 1,331 in-lb.", "1,331"),
+        ("Entrega 31 000 in-lb.", "31 000"),
+        ("Entrega 1 331,5 in-lb.", "1 331,5"),
         ("It weighs 30 kg.", "30"),
         ("That is 12 in total.", "12"),
         ("Use 762A00-11300000/A.", "762A00-11300000/A"),
@@ -77,3 +81,8 @@ def test_a_part_number_the_user_typed_can_be_repeated() -> None:
 def test_notes_in_prose_count_as_known() -> None:
     known = known_values([{"standard": "Per IEC 60034-1", "tolerance": "+/- 10%"}])
     assert find_violations("Duty follows IEC 60034-1 and voltage can vary 10%.", known) == []
+
+
+def test_a_space_separated_thousand_is_one_number() -> None:
+    # Spanish answers group thousands with a space; read as two numbers, "000" was a violation of its own.
+    assert find_violations("Entrega 31 000 in-lb.", KNOWN) == ["31 000"]

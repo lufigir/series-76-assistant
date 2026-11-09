@@ -24,7 +24,10 @@ _LABELS = re.compile(
 )
 _LIST_MARKER = re.compile(r"^\s*\d+[.)]\s", re.MULTILINE)
 
-_NUMBER = re.compile(r"(?<![0-9A-Za-z])(\d(?:[\d.,]*\d)?)(\s?)([A-Za-z%·°µ-]*)")
+# Spanish groups thousands with a space, so "31 000" is one number; the first alternative reads it whole.
+_NUMBER = re.compile(
+    r"(?<![0-9A-Za-z])(\d{1,3}(?: \d{3})+(?:[.,]\d+)?(?![.,]?\d)|\d(?:[\d.,]*\d)?)(\s?)([A-Za-z%·°µ-]*)"
+)
 # Single letters are case-sensitive, because "de 2 a 3" is Spanish and "2 A" is a current.
 _SINGLE_LETTER_UNITS = {"A", "V", "W", "s"}
 _UNITS = {
@@ -78,6 +81,7 @@ class KnownValues:
 
 def _readings(token: str) -> set[Decimal]:
     """Every value a formatted number can mean: 1,330 is 1330 in English and 1.33 in Spanish, and 7,4 is 7.4."""
+    token = token.replace(" ", "")
     separators = [character for character in token if character in ".,"]
     if not separators:
         candidates = [token]

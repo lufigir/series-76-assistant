@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.series76.assistant.R
 import com.series76.assistant.ui.components.BrandMark
+import com.series76.assistant.ui.components.rememberLocalClock
 import com.series76.assistant.ui.components.IconBadge
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -134,7 +135,8 @@ fun ChatScreen(
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val days = remember(uiState.messages) { chatDays(uiState.messages) }
+    val clock = rememberLocalClock()
+    val days = remember(uiState.messages, clock) { chatDays(uiState.messages, clock.today, clock.zone) }
     val folded = remember(uiState.messages) { foldedResults(uiState.messages) }
     // Each day adds its header to the list, so the last index counts them too.
     val itemCount = uiState.messages.size + days.size + if (uiState.sending) 1 else 0

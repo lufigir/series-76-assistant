@@ -42,6 +42,13 @@ class SessionGroupingTest {
     }
 
     @Test
+    fun `the time follows the phone's 12 or 24 hour setting`() {
+        val session = SessionSummary("1", "Title", "2026-11-04T18:38:00+00:00")
+        assertEquals("6:38 PM", groupSessions(listOf(session), today, ZoneOffset.UTC, use24Hour = false).single().sessions.single().time)
+        assertEquals("18:38", groupSessions(listOf(session), today, ZoneOffset.UTC, use24Hour = true).single().sessions.single().time)
+    }
+
+    @Test
     fun `the day is the local one, not the one in the timestamp`() {
         assertEquals("Today", group("2026-11-03T23:30:00-05:00").single().label)
     }

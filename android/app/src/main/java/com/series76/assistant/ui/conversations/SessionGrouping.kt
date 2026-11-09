@@ -18,8 +18,10 @@ data class SessionRow(
     val preview: String? = null,
 )
 
-// English like every other word in the app; the device locale gave "vie" beside "Previous 7 days".
-private val TIME = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.US)
+// English like every other word in the app; the device locale gave "vie" beside "Previous 7 days". The hour follows
+// the phone's 12/24-hour switch, which a locale's own pattern ignores.
+private val TIME_12 = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val TIME_24 = DateTimeFormatter.ofPattern("H:mm", Locale.US)
 private val DATE = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.US)
 private val WEEKDAY = DateTimeFormatter.ofPattern("EEE", Locale.US)
 private const val WEEK_DAYS = 7L
@@ -35,7 +37,9 @@ fun groupSessions(
     sessions: List<SessionSummary>,
     today: LocalDate = LocalDate.now(),
     zone: ZoneId = ZoneId.systemDefault(),
+    use24Hour: Boolean = false,
 ): List<SessionGroup> {
+    val timeFormat = if (use24Hour) TIME_24 else TIME_12
     val rows =
         sessions.map { session ->
             val moment =
@@ -55,7 +59,7 @@ fun groupSessions(
                 }
             val time =
                 when (label) {
-                    TODAY, YESTERDAY -> moment?.format(TIME).orEmpty()
+                    TODAY, YESTERDAY -> moment?.format(timeFormat).orEmpty()
                     PAST_WEEK -> moment?.format(WEEKDAY).orEmpty()
                     else -> moment?.format(DATE).orEmpty()
                 }

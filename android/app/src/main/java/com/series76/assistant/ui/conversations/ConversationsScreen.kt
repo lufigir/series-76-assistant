@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.ui.components.BrandMark
+import com.series76.assistant.ui.components.rememberLocalClock
 import com.series76.assistant.ui.components.EmptyState
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
@@ -172,7 +173,8 @@ private fun SessionList(
     onLoadMore: () -> Unit,
     padding: PaddingValues,
 ) {
-    val groups = remember(sessions) { groupSessions(sessions) }
+    val clock = rememberLocalClock()
+    val groups = remember(sessions, clock) { groupSessions(sessions, clock.today, clock.zone, clock.use24Hour) }
     val listState = rememberLazyListState()
     // Asks for the next page a few rows before the end, so it usually arrives before the reader gets there.
     LaunchedEffect(listState) {

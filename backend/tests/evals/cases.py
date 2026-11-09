@@ -403,7 +403,14 @@ CASES = (
                 "¿Qué corriente consume el 762B00-11330C00/A?",
                 outcome="missing_data",
                 tools=(LOOKUP,),
-                any_of=("no está disponible", "no están disponibles", "N/A", "no hay datos", "no disponible"),
+                any_of=(
+                    "no está disponible",
+                    "no están disponibles",
+                    "N/A",
+                    "no hay dato",
+                    "no disponible",
+                    "no publica",
+                ),
             ),
         ),
     ),
@@ -516,7 +523,8 @@ CASES = (
             Turn(
                 "What does 761A00-11300000/A weigh in kg? Just give a number.",
                 tools=(LOOKUP,),
-                forbidden=("kg.",),
+                # The validator rejects an invented weight; this checks the answer says the value is not published.
+                any_of=("publish", "not list", "not available", "not in the"),
             ),
         ),
     ),
@@ -544,6 +552,68 @@ CASES = (
                 outcome="answered",
                 tools=(NOTES,),
                 values=("Class I",),
+            ),
+        ),
+    ),
+    # The explosionproof markings cover Class I Groups C and D, gas group IIB. Hydrogen is IIC, and dust is
+    # Class II, so recommending explosionproof there would put an uncertified motor in that atmosphere.
+    Case(
+        "hydrogen-is-outside-the-markings",
+        "data_sheet_notes",
+        (
+            Turn(
+                "This valve sits in a room where we store hydrogen. Which explosionproof model works on 110 V?",
+                tools=(NOTES,),
+                no_products=True,
+                any_of=("IIB", "Groups C", "Group C"),
+            ),
+        ),
+    ),
+    Case(
+        "combustible-dust-is-outside-the-markings",
+        "data_sheet_notes",
+        (
+            Turn(
+                "En la planta hay polvo de harina en el aire. ¿Qué actuador me sirve a 110 V monofásico?",
+                tools=(NOTES,),
+                no_products=True,
+            ),
+        ),
+    ),
+    Case(
+        "propane-is-inside-the-markings",
+        "recommendation",
+        (
+            Turn(
+                "Zona de propano, Clase I División 1 Grupo D, 110 V monofásico, servicio on/off",
+                outcome="recommendation",
+                first_product="761X30-11300000/A",
+                requirements={"enclosure": "explosionproof", "power_supply": "110v", "service": "on_off"},
+            ),
+        ),
+    ),
+    Case(
+        "certification-the-sheet-does-not-name",
+        "data_sheet_notes",
+        (
+            Turn(
+                "Does 763X30-11320000/A carry ATEX approval?",
+                tools=(NOTES,),
+                any_of=("Ex d IIB",),
+                forbidden=("not in the tables", "is not in the table"),
+            ),
+        ),
+    ),
+    Case(
+        "frequency-of-a-dc-row",
+        "part_number_data",
+        (
+            Turn(
+                "How long does 761X30-11370000/A take to turn on 50 Hz power?",
+                tools=(LOOKUP,),
+                values=("17",),
+                any_of=("DC",),
+                forbidden=("as none", "is none"),
             ),
         ),
     ),

@@ -18,6 +18,7 @@ Put your key in `OPENROUTER_API_KEY`; that is the only value you have to fill in
 |---|---|---|
 | `LLM_PROVIDER` | `openrouter` | `openrouter` or `google` |
 | `LLM_MODEL` | `deepseek/deepseek-v4.1-flash` | Model that runs the agent |
+| `LLM_FALLBACK_MODEL` | none; `google/gemini-3.5-flash-lite` in `.env.example` | Takes over a model call that `LLM_MODEL` fails, such as an outage at its provider. Leave it empty with `LLM_PROVIDER=google` |
 | `TRANSCRIPTION_MODEL` | `google/gemini-3.1-flash-lite` | Model that transcribes voice |
 | `GOOGLE_API_KEY` | none | Needed only when `LLM_PROVIDER=google` |
 | `JWT_SECRET` | set in `.env.example` | Signs login tokens, at least 32 characters; replace it anywhere but a local machine |
@@ -31,7 +32,7 @@ Model names follow the provider. Without an OpenRouter budget, set `LLM_PROVIDER
 docker compose up --build
 ```
 
-Compose starts PostgreSQL, applies the migrations, loads the 68 actuators and the test users, then serves the API on http://localhost:8000. Interactive docs are at http://localhost:8000/docs. Conversations live in a Docker volume, so they survive `docker compose restart`; `docker compose down -v` erases them.
+Compose starts PostgreSQL, applies the migrations, loads the 68 actuators and the test users, then serves the API on http://localhost:8000. Interactive docs are at http://localhost:8000/docs. `curl http://localhost:8000/health` names the provider and models the container read from `.env`, so a changed setting can be checked without spending a turn; after editing `.env`, `docker compose up -d` applies it. Conversations live in a Docker volume, so they survive `docker compose restart`; `docker compose down -v` erases them.
 
 Every route except login and `/health` needs a token:
 
@@ -52,12 +53,12 @@ Send the returned `session_id` with the next request to continue that conversati
 | Route | Purpose |
 |---|---|
 | `POST /api/auth/login` | Email and password to a token |
-| `GET /api/auth/me` | The user behind a token |
+| `GET /api/auth/me` | The user behind a token, and whether they are a developer |
 | `POST /api/conversation` | One turn |
 | `GET /api/sessions` | The user's conversations, newest first: id, title, date, and a preview of the latest answer |
 | `GET /api/sessions/{id}/messages` | History to resume a conversation, latest messages first in pages, each page in reading order |
 | `GET /api/actuators/part-numbers` | Every part number with its enclosure, supply and top torque, which the app uses to complete and build part numbers |
-| `GET /api/messages/{id}/debug` | Tools, parameters, returned data, model, tokens, cost and latency of one answer |
+| `GET /api/messages/{id}/debug` | Developers only: tools, parameters, returned data, model, tokens, cost and latency of one of their answers |
 | `POST /api/transcriptions` | Audio to text |
 | `GET /health` | Liveness |
 
@@ -105,11 +106,25 @@ An emulator reaches the backend at `http://10.0.2.2:8000/`, which is the default
 ./gradlew installLocal -PbackendUrl=http://192.168.1.20:8000/
 ```
 
-Log in with a test user. **To open the debug screen, press and hold an answer and pick "Technical details".** It shows the tools called, their parameters and returned data, plus the model, tokens, cost and latency. The same menu copies the answer. No button or hint shows the gesture, so end users won't land on the debug screen by accident. The gesture authorizes no one, though; a user who finds it sees only the trace of their own answers, which holds no prompt, keys or other users' data. In production the route would require a developer role and traces would go to an OpenTelemetry backend instead (ADR 10).
+**To open the debug screen, log in as `ana@series76.test`, press and hold an answer and pick "Technical details".** It shows the tools called, their parameters and returned data, plus the model that answered, tokens, cost and latency. Ana is a developer; Bruno is an end user, and his menu only copies the answer. The backend enforces the role. Its debug route answers 403 to a user without the developer flag, and a developer sees only the traces of their own answers. In production the traces would go to an OpenTelemetry backend instead (ADR 10).
 
 ## Design and architecture
 
 Each decision below has its options and consequences in [`docs/adr/`](docs/adr).
+
+```mermaid
+flowchart LR
+    App["Android app<br/>(Compose)"] -- "REST + JWT" --> API["FastAPI"]
+    API --> Conv["Conversation service"]
+    Conv --> Agent["LangChain agent<br/>call limits + number validator"]
+    Agent <-- "tool calls" --> LLM["OpenRouter model"]
+    Agent --> Tools["get_actuator · find_actuators<br/>get_data_sheet_notes · mark_out_of_scope"]
+    Tools --> Svc["ActuatorService<br/>matching rules in pure code"]
+    Svc --> DB[("PostgreSQL<br/>catalog · messages · checkpoints")]
+    Conv -- "cards from tool results" --> API
+    PDF["Data sheet PDF"] -- "ingest.py: two vision models must agree" --> JSON["actuators.json"]
+    JSON -- "loaded on start" --> DB
+```
 
 **The model never owns a number.** It picks typed tools (`get_actuator`, `find_actuators`, `get_data_sheet_notes`, `mark_out_of_scope`) and code writes the queries. Text-to-SQL would answer more kinds of question, but a valid query on the wrong column would go unnoticed, and nobody needs analytics over 68 rows (ADR 1). The cards come from tool results, never from model text.
 
@@ -144,8 +159,19 @@ The data sheet has traps that the tests pin down, listed in [`AGENTS.md`](AGENTS
 
 ### The app
 
-The app should look like an engineering tool: white surfaces, cool grays, hairlines in place of shadows, and one blue for what can be pressed. Amber and red only ever mean a problem. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.
+Taken on a phone against the backend on `deepseek/deepseek-v4.1-flash`.
 
+| Home before the first question | Home | Recommendation |
+|:-:|:-:|:-:|
+| <img src="docs/screenshots/home-empty.png" width="240" alt="Home screen with no conversations and three example questions"> | <img src="docs/screenshots/home.png" width="240" alt="Home screen with the question bar and saved conversations"> | <img src="docs/screenshots/recommendation.png" width="240" alt="Recommendation with follow-up buttons and the smallest models that fit"> |
+| **Comparison** | **No exact match** | **Part number builder** |
+| <img src="docs/screenshots/comparison.png" width="240" alt="Comparison table with the requirements first, marked Meets"> | <img src="docs/screenshots/no-match.png" width="240" alt="No exact match, with the closest alternatives and what each misses"> | <img src="docs/screenshots/part-number-builder.png" width="240" alt="Part number builder offering only models in the tables"> |
+| **Data sheet** | **Debug, for developers** | **Login** |
+| <img src="docs/screenshots/data-sheet.png" width="240" alt="Data sheet of one model with torque, duty, speed and currents"> | <img src="docs/screenshots/debug.png" width="240" alt="Debug screen with model, cost, tokens and the tool call"> | <img src="docs/screenshots/login.png" width="240" alt="Login screen"> |
+
+The app should look like an engineering tool: cool grays, hairlines in place of shadows, a P&ID valve as its mark, and one rust color for what can be pressed. Amber marks an answer that needs attention. Light and dark follow the phone. It uses Material 3 components with its own theme, and dynamic color stays off so that status colors mean the same on every phone.
+
+- The home screen starts with a question. One bar at the top takes a part number or a requirement, builds a part number step by step, or starts a recording, and any of the three begins a new conversation. The saved conversations sit below it, so there is no separate "new conversation" button.
 - How many models came back decides the view. One opens as a small data sheet, with services and frequencies as columns. Two sit side by side with no sideways scroll. Three or more open as a list whose rows expand in place, with a table one tap away, because columns past the second would run off a phone's screen.
 - Requirements come first, as "Meets" or "Has 3000". That text comes from what the backend decided, so the app never judges a figure on its own. A model from a lookup was never checked, and its cell stays blank.
 - The full comparison opens on its own screen, grouped by topic, with the part numbers pinned and "Only differences" in plain view. Nielsen Norman Group recommends pinned headers for tables longer than a screen, and Baymard's testing favored both grouping and hiding what matches.
@@ -161,10 +187,13 @@ The code follows Google's recommended layers in one Gradle module: `data` (repos
 
 All of them come from environment variables.
 
-- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [76 of 76](docs/evals/deepseek-v4.1-flash.md) at 2.9 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0003 in the evals, whose conversations are short. Cost grows with the conversation, because each turn resends the history and its tool results: on a phone, the first turn sent 4,700 input tokens and cost USD 0.0002, and the thirteenth sent 19,000 and cost up to USD 0.005. Of the cheap models compared on the previous prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
+- **Agent:** `deepseek/deepseek-v4.1-flash` by default. Lookups and recommendations need reliable tool calls more than deep reasoning, since code does the filtering. It passed [104 of 104](docs/evals/deepseek-v4.1-flash.md) at 2.6 s a turn, and at USD 0.045 and 0.50 per million tokens a turn costs about USD 0.0004 in the evals, whose conversations are short. Cost grows with the conversation, because each turn resends the history and its tool results: on a phone, the first turn sent 4,700 input tokens and cost USD 0.0002, and the thirteenth sent 19,000 and cost up to USD 0.005. Of the cheap models compared on the previous prompt, `qwen/qwen3.7-flash` passed 68 and ended 3 turns in the template, and `deepseek/deepseek-v4-flash` passed 67. OpenAI's `gpt-6-luna` and `gpt-5-nano` accept no `temperature`, so with `require_parameters` OpenRouter finds no route for them.
+- **Fallback:** `google/gemini-3.5-flash-lite`, from another provider and family, so an outage at DeepSeek's providers doesn't stop the assistant. It runs only when a call to the agent's model fails, and the same validator checks its answer. It is the model the golden set runs on during development, so its behavior is measured. The debug view names the model that answered each call.
 - **Development and evals:** `gemini-3.5-flash-lite` on Google's free tier, to keep the assessment's budget intact.
 - **Voice:** `google/gemini-3.1-flash-lite`, which got every part number exact on 24 recordings where `gemini-3.5-flash-lite` dropped a zero from `11320000` in 8 ([comparison](docs/evals/README.md#voice)).
 - **Ingestion:** `anthropic/claude-haiku-5.5` checked by `google/gemini-3.1-flash-lite`, two vision models that must agree. Haiku misread none of the 1,410 reviewed values, and no cheaper model came close ([comparison](docs/evals/README.md#ingestion)).
+
+The whole project spent USD 0.81 of the key's USD 10 by November 8, as OpenRouter's `/api/v1/key` reports, model comparisons included. Day-to-day development ran on Google's free tier.
 
 ## Tests
 
@@ -177,13 +206,13 @@ uv run pytest
 
 For the app, run `./gradlew testDebugUnitTest` from `android/`. CI runs these together with `ruff`, `mypy`, `import-linter`, Android lint, the commit format check and `gitleaks` over the whole history.
 
-The evals send 38 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
+The evals send 52 cases to the model set in `LLM_PROVIDER` and `LLM_MODEL`: part number data, follow-ups, recommendations, invalid part numbers, N/A rows, ambiguous requests, no match, hazardous areas, certifications the sheet does not name, out of scope and adversarial prompts. They run on a throwaway PostgreSQL and spend that provider's budget, so they stay out of CI.
 
 ```bash
 uv run python -m tests.evals.run --repeat 2 --delay 8 --report ../docs/evals/gemini-3.5-flash-lite.md
 ```
 
-On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite` both passed 76 of 76, every case in both repetitions. [The comparison](docs/evals/README.md) has every model tried, with its report.
+On the current prompt, `deepseek/deepseek-v4.1-flash` passed 104 of 104, every case in both repetitions. [The comparison](docs/evals/README.md) has every model tried, with its report.
 
 ## Optional features
 
@@ -191,16 +220,16 @@ On the current prompt, `deepseek/deepseek-v4.1-flash` and `gemini-3.5-flash-lite
 
 Test users, loaded by Compose:
 
-| Email | Password |
-|---|---|
-| `ana@series76.test` | `ana-series76-demo` |
-| `bruno@series76.test` | `bruno-series76-demo` |
+| Email | Password | Role |
+|---|---|---|
+| `ana@series76.test` | `ana-series76-demo` | Developer: can open the debug screen |
+| `bruno@series76.test` | `bruno-series76-demo` | End user |
 
 Passwords are stored as Argon2 hashes. Login returns a JWT that lasts 12 hours, the backend takes the user from it, and each user sees only their own conversations (ADR 8). After 10 wrong passwords for one email in 15 minutes, login answers 429 with `Retry-After`, even to the right password. Unknown emails count the same way, so the 429 does not reveal which accounts exist.
 
 ### Voice
 
-The app records M4A, sends it to `POST /api/transcriptions` as the raw request body (WAV or M4A, up to 5 MB) and puts the returned text in the input box for the user to review before sending. The backend discards the audio. Reviewing matters because a part number heard wrong would get a confident answer about the wrong actuator.
+The microphone sits in the chat's input bar and in the home screen's, where it opens a new conversation already recording. The app records M4A, sends it to `POST /api/transcriptions` as the raw request body (WAV or M4A, up to 5 MB) and puts the returned text in the input box for the user to review before sending. The backend discards the audio. Reviewing matters because a part number heard wrong would get a confident answer about the wrong actuator.
 
 We compared engines on four phrases in English and Spanish, with a synthetic voice and one pass each. Whisper tiny and base on `sherpa-onnx` got part numbers wrong, and Gemini with the format described in its prompt got them exact (ADR 7). The sample is small and says nothing about a noisy plant floor.
 

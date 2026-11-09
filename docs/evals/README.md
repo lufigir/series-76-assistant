@@ -2,11 +2,11 @@
 
 ## Agent
 
-Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, and the first two rows were rerun on later prompts (see [After a prompt fix](#after-a-prompt-fix)): both on the current one with 38 cases, through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
+Every candidate ran the same 36 cases twice on prompt `a1717b6787de` with `temperature=0`, and the first two rows were rerun on later prompts (see [After a prompt fix](#after-a-prompt-fix)): `deepseek-v4.1-flash` on the current one with 52 cases and Gemini on `06a904b16d2a` with 38, through OpenRouter except Gemini, which ran on Google's API. Cost is the OpenRouter list price times the tokens measured, per turn.
 
 | Model | Passed | Ended in the template | Latency | Tokens in / out | USD per turn | Report |
 |---|---:|---:|---:|---:|---:|---|
-| `deepseek/deepseek-v4.1-flash` (default) | 76 of 76 | 0 | 2.9 s | 5,379 / 210 | 0.0003 | [report](deepseek-v4.1-flash.md) |
+| `deepseek/deepseek-v4.1-flash` (default) | 104 of 104 | 0 | 2.6 s | 6,696 / 193 | 0.0004 | [report](deepseek-v4.1-flash.md) |
 | `gemini-3.5-flash-lite`, on Google's free tier | 76 of 76 | 0 | 2.6 s | 3,842 / 72 | 0.0006 on OpenRouter | [report](gemini-3.5-flash-lite.md) |
 | `qwen/qwen3.7-flash` | 68 of 72 | 3 | 7.3 s | 5,425 / 521 | 0.0002 | [report](qwen3.7-flash.md) |
 | `deepseek/deepseek-v4-flash` | 67 of 72 | 0 | 4.8 s | 5,347 / 211 | 0.0005 | [report](deepseek-v4-flash.md) |
@@ -30,6 +30,10 @@ On that prompt `deepseek-v4.1-flash` passed 74 of 74 at 3.2 s and `gemini-3.5-fl
 On November 7, on a phone, an answer to a bare part number repeated every figure its card already showed. The prompt now leaves those numbers to the card (`06a904b16d2a`), and a 38th case pins it. `deepseek-v4.1-flash` passed 76 of 76 at 2.9 s and `gemini-3.5-flash-lite` 76 of 76 at 2.6 s, every case in both repetitions.
 
 On November 8, a probe of odd questions and human conversation patterns (corrections, referents, topic switches, closings) found answers that were correct but unhelpful. "Another one like it" for the 767C, the only model at 9000 Nm, fell back to the smallest model in the catalog. "How many models are there?" was refused, and "the biggest you have" was asked back three times. Code now answers both: `find_similar` returns the nearest models in torque on the same enclosure and supply, and the notes tool carries a catalog overview. Prompt rules cover "and the 762?", greetings and thanks later in a conversation, and saying which requirement was dropped. Nine cases pin them. On prompt `9341dfba1f5d`, `deepseek-v4.1-flash` passed 47 of 47 at 2.7 s and 1.9 model calls a turn. The nine new cases passed 27 of 27 over three repetitions.
+
+Later on November 8, 26 questions written outside the golden set found four wrong answers. A hydrogen area (gas group IIC) and a combustible dust area got explosionproof models, though the markings cover only Class I Groups C and D, gas group IIB. Asked about ATEX, the agent said a part number it had just found was not in the tables. A DC model's speed at 50 Hz came back with "its frequency is none". The prompt now checks a hazardous area against the markings before any search, says the sheet does not list a certification it does not name, and names the supply of a rating with no frequency. Five cases pin them. One of them is propane, Group D, which must still get explosionproof models.
+
+The first version of those rules let the model clear a requirement on its own: weatherproof at 24 V DC with 9000 Nm got the 767C, on 220 V, in 2 of 4 runs that had passed 4 of 4 before. The prompt now allows clearing a requirement only when the user asks, and that case passed 6 of 6 again. Two checks were also too literal and failed correct answers: "no hay dato" where the list had "no hay datos", and a refusal that said it could not give a weight "in kg". One answer about ATEX said the sheet does not list it but quoted the certification table titles, so the rule now names the explosionproof markings as what to quote. On prompt `70f15e5440d5`, `deepseek-v4.1-flash` passed 104 of 104 at 2.6 s and 2.0 model calls a turn, every case in both repetitions.
 
 ## Voice
 

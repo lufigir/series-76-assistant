@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.CatalogEntry
+import com.series76.assistant.data.remote.CurrentUser
 import com.series76.assistant.data.remote.ConversationRequest
 import com.series76.assistant.data.remote.ConversationResponse
 import com.series76.assistant.data.remote.LoginRequest
@@ -17,6 +18,7 @@ import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.data.remote.TokenResponse
 import com.series76.assistant.data.remote.TranscriptionResponse
 import com.series76.assistant.data.voice.AudioRecorder
+import com.series76.assistant.data.user.UserRepository
 import com.series76.assistant.data.voice.VoiceRepository
 import java.io.File
 import java.io.IOException
@@ -29,6 +31,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.RequestBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -44,8 +47,11 @@ private class FakeApi : Series76Api {
     var history = emptyList<MessageView>()
     var older = emptyList<MessageView>()
     var olderCursor: String? = null
+    var developer = false
 
     override suspend fun login(request: LoginRequest) = TokenResponse("token")
+
+    override suspend fun me() = CurrentUser("user-1", "ana@series76.test", developer)
 
     override suspend fun sessions(cursor: String?) = Page(emptyList<SessionSummary>())
 
@@ -106,11 +112,36 @@ class ChatViewModelTest {
         session: String? = null,
         saved: SavedStateHandle = SavedStateHandle(),
         recorder: AudioRecorder = FakeRecorder(recordingFile()),
-    ) = ChatViewModel(saved, session, null, repository, VoiceRepository(recorder, api, json), CatalogRepository(api, json))
+        firstQuestion: String? = null,
+    ) = ChatViewModel(
+        saved,
+        session,
+        null,
+        repository,
+        VoiceRepository(recorder, api, json),
+        CatalogRepository(api, json),
+        UserRepository(api, json),
+        firstQuestion,
+    )
 
     private fun ChatViewModel.ask(text: String) {
         updateDraft(text)
         sendDraft()
+    }
+
+    @Test
+    fun `a question asked from the home screen is sent once, even after the process dies`() {
+        val saved = SavedStateHandle()
+        viewModel(saved = saved, firstQuestion = "Torque of 761A00-11300000/A")
+        viewModel(saved = saved, firstQuestion = "Torque of 761A00-11300000/A")
+        assertEquals(listOf("Torque of 761A00-11300000/A"), api.sent.map { it.query })
+    }
+
+    @Test
+    fun `only a developer gets the technical details`() {
+        assertFalse(viewModel().uiState.value.canOpenDebug)
+        api.developer = true
+        assertTrue(viewModel().uiState.value.canOpenDebug)
     }
 
     @Test

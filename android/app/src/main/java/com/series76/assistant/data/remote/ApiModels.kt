@@ -12,6 +12,13 @@ data class LoginRequest(val email: String, val password: String)
 data class TokenResponse(val token: String)
 
 @Serializable
+data class CurrentUser(
+    val id: String,
+    val email: String,
+    @SerialName("is_developer") val isDeveloper: Boolean,
+)
+
+@Serializable
 data class ApiErrorBody(val message: String)
 
 @Serializable
@@ -168,6 +175,7 @@ data class ToolTrace(
 
 @Serializable
 data class ModelCallTrace(
+    val model: String? = null,
     @SerialName("input_tokens") val inputTokens: Int? = null,
     @SerialName("output_tokens") val outputTokens: Int? = null,
     @SerialName("cost_usd") val costUsd: Double? = null,

@@ -94,7 +94,12 @@ private const val DAY_ITEM = "day"
 private const val OLDER_PREFETCH_ROWS = 3
 
 @Composable
-fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String) -> Unit) {
+fun ChatRoute(
+    viewModel: ChatViewModel,
+    onBack: () -> Unit,
+    onOpenDebug: (String) -> Unit,
+    listenOnOpen: Boolean = false,
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Android cuts off the microphone in the background, so a recording never outlives the visible screen.
     LifecycleStartEffect(Unit) { onStopOrDispose { viewModel.cancelRecording() } }
@@ -113,6 +118,7 @@ fun ChatRoute(viewModel: ChatViewModel, onBack: () -> Unit, onOpenDebug: (String
         onMicDenied = viewModel::onMicDenied,
         onBack = onBack,
         onOpenDebug = onOpenDebug,
+        listenOnOpen = listenOnOpen,
     )
 }
 
@@ -132,6 +138,7 @@ fun ChatScreen(
     onMicDenied: () -> Unit,
     onBack: () -> Unit,
     onOpenDebug: (String) -> Unit,
+    listenOnOpen: Boolean = false,
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -238,6 +245,7 @@ fun ChatScreen(
                         onToggleRecording,
                         onCancelRecording,
                         onMicDenied,
+                        listenOnOpen,
                     )
                 }
             }
@@ -292,7 +300,11 @@ fun ChatScreen(
                                                     isLatest = !uiState.sending && message === uiState.messages.last(),
                                                     foldResults = message.id in folded,
                                                     onSuggestion = onSuggestion,
-                                                    onOpenDebug = { onOpenDebug(message.id) },
+                                                    onOpenDebug = if (uiState.canOpenDebug) {
+                                                        { onOpenDebug(message.id) }
+                                                    } else {
+                                                        null
+                                                    },
                                                 )
                                             }
                                         }

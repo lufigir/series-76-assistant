@@ -40,7 +40,12 @@ import kotlinx.serialization.Serializable
 private data object ConversationsKey : NavKey
 
 @Serializable
-private data class ChatKey(val sessionId: String?, val title: String? = null) : NavKey
+private data class ChatKey(
+    val sessionId: String?,
+    val title: String? = null,
+    val firstQuestion: String? = null,
+    val listen: Boolean = false,
+) : NavKey
 
 @Serializable
 private data class DebugKey(val messageId: String) : NavKey
@@ -104,12 +109,14 @@ private fun SignedInNavigation(container: AppContainer) {
                                             ConversationsViewModel(
                                                 container.conversationRepository,
                                                 container.authRepository,
+                                                container.catalogRepository,
                                             )
                                         }
                                     },
                             ),
                         onOpen = { id, title -> backStack.add(ChatKey(id, title)) },
-                        onNew = { backStack.add(ChatKey(null)) },
+                        onAsk = { question -> backStack.add(ChatKey(null, firstQuestion = question)) },
+                        onSpeak = { backStack.add(ChatKey(null, listen = true)) },
                     )
                 }
                 entry<ChatKey> { key ->
@@ -126,12 +133,15 @@ private fun SignedInNavigation(container: AppContainer) {
                                                 container.conversationRepository,
                                                 container.voiceRepository,
                                                 container.catalogRepository,
+                                                container.userRepository,
+                                                key.firstQuestion,
                                             )
                                         }
                                     },
                             ),
                         onBack = { backStack.popIfOnTop(key) },
                         onOpenDebug = { backStack.add(DebugKey(it)) },
+                        listenOnOpen = key.listen,
                     )
                 }
                 entry<DebugKey> { key ->

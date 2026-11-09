@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,6 +69,8 @@ internal fun Composer(
     onToggleRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onMicDenied: () -> Unit,
+    // Set when the home screen's microphone opened this chat, so the recording starts without a second tap.
+    listenOnOpen: Boolean = false,
 ) {
     val context = LocalContext.current
     val permission =
@@ -79,6 +82,13 @@ internal fun Composer(
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED
         if (granted) onToggleRecording() else permission.launch(Manifest.permission.RECORD_AUDIO)
+    }
+    var listened by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (listenOnOpen && !listened) {
+            listened = true
+            onMic()
+        }
     }
 
     var building by rememberSaveable { mutableStateOf(false) }

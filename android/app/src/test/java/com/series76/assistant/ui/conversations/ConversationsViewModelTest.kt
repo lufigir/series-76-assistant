@@ -1,10 +1,13 @@
 package com.series76.assistant.ui.conversations
 
 import com.series76.assistant.data.auth.AuthRepository
+import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.auth.TokenSource
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.ConversationRequest
 import com.series76.assistant.data.remote.ConversationResponse
+import com.series76.assistant.data.remote.CatalogEntry
+import com.series76.assistant.data.remote.CurrentUser
 import com.series76.assistant.data.remote.LoginRequest
 import com.series76.assistant.data.remote.MessageDebug
 import com.series76.assistant.data.remote.MessageView
@@ -41,13 +44,15 @@ private class PagedApi : Series76Api {
 
     override suspend fun login(request: LoginRequest) = TokenResponse("token")
 
+    override suspend fun me(): CurrentUser = throw NotImplementedError()
+
     override suspend fun messages(sessionId: String, cursor: String?) = Page(emptyList<MessageView>())
 
     override suspend fun converse(request: ConversationRequest): ConversationResponse = throw NotImplementedError()
 
     override suspend fun debug(messageId: String): MessageDebug = throw NotImplementedError()
 
-    override suspend fun catalog(): Nothing = throw NotImplementedError()
+    override suspend fun catalog() = emptyList<CatalogEntry>()
 
     override suspend fun transcribe(audio: RequestBody): TranscriptionResponse = throw NotImplementedError()
 }
@@ -67,7 +72,11 @@ private object NoTokens : TokenSource {
 class ConversationsViewModelTest {
     private val api = PagedApi()
     private val viewModel by lazy {
-        ConversationsViewModel(ConversationRepository(api, Json), AuthRepository(api, NoTokens, Json))
+        ConversationsViewModel(
+            ConversationRepository(api, Json),
+            AuthRepository(api, NoTokens, Json),
+            CatalogRepository(api, Json),
+        )
     }
 
     @Before

@@ -21,9 +21,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,7 +49,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.components.rememberLocalClock
-import com.series76.assistant.ui.components.EmptyState
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
 import com.series76.assistant.ui.components.rememberPlaceholderVisible
@@ -63,14 +59,20 @@ import com.series76.assistant.ui.theme.sideRoom
 import com.series76.assistant.ui.components.ErrorMessage
 
 @Composable
-fun ConversationsRoute(viewModel: ConversationsViewModel, onOpen: (id: String, title: String) -> Unit, onNew: () -> Unit) {
+fun ConversationsRoute(
+    viewModel: ConversationsViewModel,
+    onOpen: (id: String, title: String) -> Unit,
+    onAsk: (question: String) -> Unit,
+    onSpeak: () -> Unit,
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Runs each time this screen returns from a chat, whose new turns change the list.
     LaunchedEffect(Unit) { viewModel.load() }
     ConversationsScreen(
         uiState,
         onOpen,
-        onNew,
+        onAsk,
+        onSpeak,
         onRefresh = viewModel::load,
         onLoadMore = viewModel::loadMore,
         onSignOut = viewModel::signOut,
@@ -82,7 +84,8 @@ fun ConversationsRoute(viewModel: ConversationsViewModel, onOpen: (id: String, t
 fun ConversationsScreen(
     uiState: ConversationsUiState,
     onOpen: (id: String, title: String) -> Unit,
-    onNew: () -> Unit,
+    onAsk: (question: String) -> Unit,
+    onSpeak: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onSignOut: () -> Unit,
@@ -106,38 +109,30 @@ fun ConversationsScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                expandedHeight = TopBarHeight,
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BrandMark(size = 30.dp)
-                        Column {
-                            Text("Series 76", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Actuator assistant",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            Column {
+                TopAppBar(
+                    expandedHeight = TopBarHeight,
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            BrandMark(size = 30.dp)
+                            Column {
+                                Text("Series 76", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Actuator assistant",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { confirmingSignOut = true }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign out")
-                    }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNew,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New conversation") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.semantics { contentDescription = "New conversation" },
-            )
+                    },
+                    actions = {
+                        IconButton(onClick = { confirmingSignOut = true }) {
+                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign out")
+                        }
+                    },
+                )
+                AskBox(uiState.catalog, onAsk, onSpeak)
+            }
         },
     ) { padding ->
         val sessions = uiState.sessions
@@ -153,12 +148,7 @@ fun ConversationsScreen(
                 sessions == null && uiState.loading -> Unit
                 sessions == null -> ErrorState(uiState.error.orEmpty(), onRefresh, padding)
                 sessions.isEmpty() && uiState.error != null -> ErrorState(uiState.error, onRefresh, padding)
-                sessions.isEmpty() ->
-                    EmptyState(
-                        title = "No conversations yet",
-                        detail = "Ask about a part number, or describe the actuator you need.",
-                        contentPadding = padding,
-                    )
+                sessions.isEmpty() -> StarterState(onAsk, padding)
                 else -> SessionList(sessions, uiState.error, uiState.loadingMore, onOpen, onLoadMore, padding)
             }
         }
@@ -193,9 +183,9 @@ private fun SessionList(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
-            // The bottom clears the navigation bar and the button, so neither covers the last conversation.
+            // The bottom clears the navigation bar, so it never covers the last conversation.
             contentPadding =
-                PaddingValues(start = side, end = side, bottom = padding.calculateBottomPadding() + 88.dp),
+                PaddingValues(start = side, end = side, bottom = padding.calculateBottomPadding() + 16.dp),
         ) {
             error?.let { message ->
                 item {
@@ -291,7 +281,8 @@ private fun ConversationsPreview() {
                     loading = false,
                 ),
             onOpen = { _, _ -> },
-            onNew = {},
+            onAsk = {},
+            onSpeak = {},
             onRefresh = {},
             onLoadMore = {},
             onSignOut = {},

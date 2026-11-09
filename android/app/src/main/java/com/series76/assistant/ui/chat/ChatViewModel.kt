@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.series76.assistant.data.catalog.CatalogRepository
+import com.series76.assistant.data.user.UserRepository
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.ActuatorData
 import com.series76.assistant.data.remote.ApiResult
@@ -56,6 +57,8 @@ data class ChatUiState(
     val loadingOlder: Boolean = false,
     // Empty until it loads, or if it fails: the part number aids then stay hidden and typing works as before.
     val catalog: List<CatalogEntry> = emptyList(),
+    // Only a developer gets the technical details; the backend answers 403 to anyone else.
+    val canOpenDebug: Boolean = false,
 )
 
 class ChatViewModel(
@@ -65,6 +68,9 @@ class ChatViewModel(
     private val conversations: ConversationRepository,
     private val voice: VoiceRepository,
     private val catalog: CatalogRepository,
+    private val user: UserRepository,
+    // Typed on the home screen, which opens a new chat with it.
+    firstQuestion: String? = null,
 ) : ViewModel() {
     // A new chat learns its id from the first answer, and it has to survive the process dying after that.
     private var sessionId: String?
@@ -86,6 +92,15 @@ class ChatViewModel(
         if (sessionId != null) loadHistory()
         viewModelScope.launch {
             (catalog.catalog() as? ApiResult.Success)?.let { result -> _uiState.update { it.copy(catalog = result.value) } }
+        }
+        // The flag survives the process dying, so a recreated chat does not ask the model a second time.
+        if (sessionId == null && firstQuestion != null && savedState.get<Boolean>(FIRST_SENT) != true) {
+            savedState[FIRST_SENT] = true
+            val query = firstQuestion.trim().take(MAX_QUERY_LENGTH)
+            send(ChatMessage(id = UUID.randomUUID().toString(), fromUser = true, text = query, createdAt = now()))
+        }
+        viewModelScope.launch {
+            if (user.isDeveloper()) _uiState.update { it.copy(canOpenDebug = true) }
         }
     }
 
@@ -276,5 +291,6 @@ class ChatViewModel(
         const val SESSION_ID = "session_id"
         const val TITLE = "title"
         const val DRAFT = "draft"
+        const val FIRST_SENT = "first_sent"
     }
 }

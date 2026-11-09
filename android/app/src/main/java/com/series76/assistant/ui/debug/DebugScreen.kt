@@ -138,6 +138,14 @@ private fun DebugContent(debug: MessageDebug, padding: PaddingValues) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(trace.model, style = MaterialTheme.typography.titleMedium)
+                val fallbacks = fallbackModels(trace.model, trace.modelCalls)
+                if (fallbacks.isNotEmpty()) {
+                    Text(
+                        "Answered by the fallback: ${fallbacks.joinToString()}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Text(
                     "Prompt ${trace.promptVersion}",
                     style = MaterialTheme.typography.bodySmall,

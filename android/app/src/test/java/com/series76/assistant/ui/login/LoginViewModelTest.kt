@@ -3,6 +3,7 @@ package com.series76.assistant.ui.login
 import com.series76.assistant.data.auth.AuthRepository
 import com.series76.assistant.data.auth.TokenSource
 import com.series76.assistant.data.remote.ConversationRequest
+import com.series76.assistant.data.remote.CurrentUser
 import com.series76.assistant.data.remote.LoginRequest
 import com.series76.assistant.data.remote.Series76Api
 import com.series76.assistant.data.remote.TokenResponse
@@ -43,6 +44,8 @@ private class FakeTokens : TokenSource {
 
 private class LoginOnlyApi : Series76Api {
     override suspend fun login(request: LoginRequest) = TokenResponse("token")
+
+    override suspend fun me(): CurrentUser = throw NotImplementedError()
 
     override suspend fun sessions(cursor: String?): Nothing = throw NotImplementedError()
 

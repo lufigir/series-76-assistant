@@ -3,8 +3,10 @@ package com.series76.assistant.ui.conversations
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.series76.assistant.data.auth.AuthRepository
+import com.series76.assistant.data.catalog.CatalogRepository
 import com.series76.assistant.data.conversation.ConversationRepository
 import com.series76.assistant.data.remote.ApiResult
+import com.series76.assistant.data.remote.CatalogEntry
 import com.series76.assistant.data.remote.SessionSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,14 +20,23 @@ data class ConversationsUiState(
     val error: String? = null,
     val nextCursor: String? = null,
     val loadingMore: Boolean = false,
+    // Feeds the part number builder on the search box; empty hides the builder.
+    val catalog: List<CatalogEntry> = emptyList(),
 )
 
 class ConversationsViewModel(
     private val conversations: ConversationRepository,
     private val auth: AuthRepository,
+    private val catalog: CatalogRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ConversationsUiState())
     val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            (catalog.catalog() as? ApiResult.Success)?.let { result -> _uiState.update { it.copy(catalog = result.value) } }
+        }
+    }
 
     /** Reloads the first page. Keeps what is on screen while it refreshes, and if the refresh fails. */
     fun load() {
@@ -34,7 +45,12 @@ class ConversationsViewModel(
             when (val result = conversations.sessions()) {
                 is ApiResult.Success ->
                     _uiState.value =
-                        ConversationsUiState(result.value.items, loading = false, nextCursor = result.value.nextCursor)
+                        ConversationsUiState(
+                            result.value.items,
+                            loading = false,
+                            nextCursor = result.value.nextCursor,
+                            catalog = _uiState.value.catalog,
+                        )
                 is ApiResult.Failure -> _uiState.update { it.copy(loading = false, error = result.message) }
             }
         }

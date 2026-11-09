@@ -87,7 +87,8 @@ internal fun AssistantMessage(
     isLatest: Boolean,
     foldResults: Boolean,
     onSuggestion: (String) -> Unit,
-    onOpenDebug: () -> Unit,
+    // Null for an end user, who gets no technical details.
+    onOpenDebug: (() -> Unit)?,
 ) {
     val clipboard = LocalClipboard.current
     val haptics = LocalHapticFeedback.current
@@ -183,14 +184,16 @@ internal fun AssistantMessage(
                     menuOpen = false
                 },
             )
-            DropdownMenuItem(
-                text = { Text("Technical details") },
-                leadingIcon = { Icon(Icons.Filled.Build, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onOpenDebug()
-                },
-            )
+            if (onOpenDebug != null) {
+                DropdownMenuItem(
+                    text = { Text("Technical details") },
+                    leadingIcon = { Icon(Icons.Filled.Build, contentDescription = null) },
+                    onClick = {
+                        menuOpen = false
+                        onOpenDebug()
+                    },
+                )
+            }
         }
     }
 }

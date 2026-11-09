@@ -11,6 +11,9 @@ interface Series76Api {
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): TokenResponse
 
+    @GET("api/auth/me")
+    suspend fun me(): CurrentUser
+
     @GET("api/sessions")
     suspend fun sessions(@Query("cursor") cursor: String? = null): Page<SessionSummary>
 

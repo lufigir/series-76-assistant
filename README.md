@@ -196,7 +196,7 @@ Test users, loaded by Compose:
 | `ana@series76.test` | `ana-series76-demo` |
 | `bruno@series76.test` | `bruno-series76-demo` |
 
-Passwords are stored as Argon2 hashes. Login returns a JWT that lasts 12 hours, the backend takes the user from it, and each user sees only their own conversations (ADR 8).
+Passwords are stored as Argon2 hashes. Login returns a JWT that lasts 12 hours, the backend takes the user from it, and each user sees only their own conversations (ADR 8). After 10 wrong passwords for one email in 15 minutes, login answers 429 with `Retry-After`, even to the right password. Unknown emails count the same way, so the 429 does not reveal which accounts exist.
 
 ### Voice
 

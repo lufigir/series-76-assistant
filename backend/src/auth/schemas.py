@@ -24,3 +24,10 @@ class UserCredentials(CurrentUser):
     """Internal only: never returned by an endpoint."""
 
     password_hash: str
+
+
+class RecentFailures(BaseModel):
+    """Wrong passwords for one email inside the window, and how long until the oldest of them leaves it."""
+
+    count: int
+    seconds_left: float

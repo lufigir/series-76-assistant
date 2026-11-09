@@ -86,7 +86,7 @@ Keys live only in the ignored `.env`. During development, use Google AI Studio's
 
 | Receiver | Data | Purpose |
 |---|---|---|
-| PostgreSQL (local Docker) | Email, password hash, conversations | Login and history |
+| PostgreSQL (local Docker) | Email, password hash, conversations; emails typed with a wrong password, for 15 minutes | Login, history and the login cap |
 | OpenRouter and its model providers | Conversation text, audio to transcribe | Answering and transcribing |
 | Google AI Studio, free tier, development only | Test conversations and audio; its terms allow training and human review | Evals |
 
@@ -100,6 +100,7 @@ Only test users and catalog questions go to these services. Deleting a user casc
 | Database connections | Pool of 5, overflow 5, plus 5 for the checkpointer | Under 5 each | A few simultaneous turns in an evaluation |
 | Model calls per turn | 6, plus one validator retry; 8 tool calls; 2,000 output tokens per call | 2.0, measured | `MAX_MODEL_CALLS` and `MAX_TOOL_CALLS` |
 | Turns per user | 60 a minute across all conversations, then 429 (`TURNS_PER_MINUTE`, ADR 9) | A few a minute when typing | `turn_starts`, one locked count and insert per turn |
+| Wrong passwords per email | 10 in 15 minutes, then 429 even with the right one (ADR 8) | One or two when mistyping | `login_failures`, locked per email through the hash check |
 | OpenRouter budget | The key's USD 10 limit, which `/api/v1/key` reports; `/api/v1/credits` shows the whole account | USD 0.0003 per turn on `deepseek-v4.1-flash` in the evals (5,379 in, 210 out); up to USD 0.005 thirteen turns into a conversation (19,000 in), measured on a phone | 2.0 model calls per turn, and the history each turn resends |
 | Full ingestion | Same budget | USD 0.05, measured | Reuse `--saved` instead |
 | Google free tier | 15 requests per minute on `gemini-3.5-flash-lite`, measured; per day not measured | About 90 requests per eval pass | Eval repetitions |

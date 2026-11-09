@@ -16,4 +16,4 @@ An unknown email still verifies against a dummy hash, so timing does not reveal 
 
 A token cannot be revoked before it expires, which is acceptable with no sign-out from other devices and no real accounts. `.env.example` ships a known `JWT_SECRET` so an evaluator has one value to fill in. That secret must be replaced anywhere other than a local machine.
 
-There is no rate limit on login. Real accounts would need one.
+Wrong passwords are capped per email: 10 in 15 minutes, then 429 until the oldest leaves the window, and a successful login clears the count. The cap counts the email as typed, whether the account exists or not, so it does not reveal accounts. It goes per email and not per IP because behind Docker's port mapping every client can arrive from the same gateway address. The price is that anyone can lock someone else's account for 15 minutes, which with test users only is acceptable.

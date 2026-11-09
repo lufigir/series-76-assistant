@@ -23,4 +23,9 @@ class PartNumberTextTest {
         assertEquals("763a00-11320000/a or 764X30-11320000/A", text.replace("⁠", ""))
         assertEquals(6, text.count { it == '⁠' })
     }
+
+    @Test
+    fun `a narrow line may break a part number after its dash and nowhere else`() {
+        assertEquals("761A00-11300000⁠/⁠A", keepPartNumbersWhole("761A00-11300000/A", breakAtDash = true))
+    }
 }

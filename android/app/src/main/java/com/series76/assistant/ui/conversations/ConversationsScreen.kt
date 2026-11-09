@@ -53,7 +53,6 @@ import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.components.rememberLocalClock
 import com.series76.assistant.ui.components.EmptyState
-import com.series76.assistant.ui.components.ErrorMessage
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
 import com.series76.assistant.ui.components.rememberPlaceholderVisible
@@ -61,6 +60,7 @@ import com.series76.assistant.ui.components.SectionLabel
 import com.series76.assistant.ui.theme.Series76Theme
 import com.series76.assistant.ui.theme.TopBarHeight
 import com.series76.assistant.ui.theme.sideRoom
+import com.series76.assistant.ui.components.ErrorMessage
 
 @Composable
 fun ConversationsRoute(viewModel: ConversationsViewModel, onOpen: (id: String, title: String) -> Unit, onNew: () -> Unit) {
@@ -243,10 +243,12 @@ private fun SessionItem(session: SessionRow, onClick: () -> Unit, modifier: Modi
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Two lines, breaking a part number only at its dash: cut anywhere else at a large font, it reads as
+                // another model.
                 Text(
-                    session.title,
+                    keepPartNumbersWhole(session.title, breakAtDash = true),
                     style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )

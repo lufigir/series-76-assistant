@@ -7,20 +7,6 @@ A plant engineering team picks Series 76 electric actuators by searching the man
 - **Non-goals:** sign-up, password recovery, OAuth, pgvector, streaming, Room, Hilt, iOS, multiple agents.
 - **Riskiest assumptions:** that the model never shows a number outside the tables, and that an evaluator can reproduce everything from the README alone.
 
-## Scope
-
-| Concern | Status | Reason |
-|---|---|---|
-| llm-agents | applies | The model decides which tools to call |
-| api-design | applies | A mobile client and the contract in the assessment |
-| testing | applies | Unit, integration on real PostgreSQL, public endpoints, model evals |
-| privacy | applies | Stores emails and conversations of test users |
-| file-uploads | applies | Audio reaches the backend: size limit, content check, never stored |
-| multi-tenancy | no | Each user sees only their own data; no organizations |
-| async-work | no | The contract answers within the request |
-| list-views, url-design, routing, product-analytics, direct-data-access | no | Native app, lists without filters, no analytics |
-| reliability | later | A technical assessment: no SLOs or backups |
-
 ## Layers
 
 The dependency rule is `router > dependencies > service > repository > models`, and `src.main > conversations > agent | auth > actuators > core`. `uv run lint-imports` fails the build on a violation, and its contracts in `backend/pyproject.toml` are the authority.

@@ -53,6 +53,7 @@ import com.series76.assistant.data.remote.SessionSummary
 import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.components.rememberLocalClock
 import com.series76.assistant.ui.components.EmptyState
+import com.series76.assistant.ui.components.ErrorMessage
 import com.series76.assistant.ui.components.ErrorState
 import com.series76.assistant.ui.components.ListPlaceholder
 import com.series76.assistant.ui.components.rememberPlaceholderVisible
@@ -198,12 +199,7 @@ private fun SessionList(
         ) {
             error?.let { message ->
                 item {
-                    Text(
-                        message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
+                    ErrorMessage(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
             }
             groups.forEach { group ->

@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.series76.assistant.R
 import com.series76.assistant.ui.components.BrandMark
 import com.series76.assistant.ui.theme.Series76Theme
+import com.series76.assistant.ui.components.ErrorMessage
 
 @Composable
 fun LoginRoute(viewModel: LoginViewModel) {
@@ -127,7 +128,7 @@ fun LoginScreen(uiState: LoginUiState, onSubmit: (String, String) -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                     uiState.error?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                        ErrorMessage(it, style = MaterialTheme.typography.bodyMedium)
                     }
                     Button(
                         onClick = submit,

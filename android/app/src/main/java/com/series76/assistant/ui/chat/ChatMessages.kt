@@ -52,6 +52,10 @@ import com.series76.assistant.R
 import com.series76.assistant.ui.components.SectionLabel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.series76.assistant.ui.components.ErrorMessage
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.platform.LocalDensity
 
 private val USER_BUBBLE = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp)
 
@@ -69,12 +73,7 @@ internal fun UserMessage(message: ChatMessage, onRetry: () -> Unit) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
         )
         message.error?.let { error ->
-            Text(
-                error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
-            )
+            ErrorMessage(error, modifier = Modifier.padding(top = 8.dp))
             TextButton(onClick = onRetry) { Text("Try again") }
         }
     }
@@ -199,16 +198,27 @@ internal fun AssistantMessage(
 @Composable
 private fun OutcomeNote(outcome: String?, hasResults: Boolean) {
     val note = outcomeNote(outcome, hasResults) ?: return
-    Text(
-        note,
-        style = MaterialTheme.typography.labelLarge,
-        color =
-            when (outcomeTone(outcome)) {
-                OutcomeTone.CAUTION -> MaterialTheme.colorScheme.tertiary
-                OutcomeTone.NEGATIVE -> MaterialTheme.colorScheme.error
-                OutcomeTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
-    )
+    val tone = outcomeTone(outcome)
+    val color =
+        when (tone) {
+            OutcomeTone.CAUTION -> MaterialTheme.colorScheme.tertiary
+            OutcomeTone.NEGATIVE -> MaterialTheme.colorScheme.error
+            OutcomeTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    // The same marks as elsewhere: the circle for a failure, the triangle for a requirement or a figure to watch.
+    val icon =
+        when (tone) {
+            OutcomeTone.CAUTION -> rememberVectorPainter(Icons.Filled.Warning)
+            OutcomeTone.NEGATIVE -> painterResource(R.drawable.ic_error)
+            OutcomeTone.NEUTRAL -> null
+        }
+    val style = MaterialTheme.typography.labelLarge
+    // Sized from the text, so the mark grows with the reader's font scale instead of shrinking beside it.
+    val iconSize = with(LocalDensity.current) { style.fontSize.toDp() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        icon?.let { Icon(it, contentDescription = null, tint = color, modifier = Modifier.padding(end = 6.dp).size(iconSize)) }
+        Text(note, style = style, color = color)
+    }
 }
 
 private const val ONE_SECOND_MILLIS = 1000L

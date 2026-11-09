@@ -57,6 +57,7 @@ import androidx.core.content.ContextCompat
 import com.series76.assistant.R
 import com.series76.assistant.data.remote.MAX_QUERY_LENGTH
 import com.series76.assistant.ui.components.PulsingDot
+import com.series76.assistant.ui.components.ErrorMessage
 
 @Composable
 internal fun Composer(
@@ -98,12 +99,7 @@ internal fun Composer(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             uiState.voiceError?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
+                ErrorMessage(it, modifier = Modifier.padding(horizontal = 8.dp))
             }
             AnimatedContent(
                 targetState = uiState.voice,

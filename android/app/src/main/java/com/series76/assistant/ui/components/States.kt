@@ -36,6 +36,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.series76.assistant.R
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Row
 
 // Both scroll, so that pull-to-refresh still works on a screen with nothing else to scroll.
 @Composable
@@ -46,6 +52,12 @@ fun ErrorState(message: String, onRetry: () -> Unit, contentPadding: PaddingValu
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
+        Icon(
+            painterResource(R.drawable.ic_error),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(32.dp),
+        )
         SectionLabel("Something went wrong", color = MaterialTheme.colorScheme.error)
         Text(message, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge)
         FilledTonalButton(onClick = onRetry) { Text("Try again") }
@@ -125,5 +137,23 @@ fun ListPlaceholder(contentPadding: PaddingValues = PaddingValues()) {
                 Box(Modifier.fillMaxWidth(0.3f).height(11.dp).background(tone, MaterialTheme.shapes.small))
             }
         }
+    }
+}
+
+/**
+ * A failure in words with the error mark beside it. The rust primary sits close to the error red, so the mark is what
+ * tells a failure apart from a button or a label at a glance, and it helps anyone who cannot tell the two reds apart.
+ */
+@Composable
+fun ErrorMessage(text: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodySmall) {
+    Row(modifier = modifier, verticalAlignment = Alignment.Top) {
+        val size = with(LocalDensity.current) { style.lineHeight.toDp() }
+        Icon(
+            painterResource(R.drawable.ic_error),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(end = 6.dp).size(size),
+        )
+        Text(text, color = MaterialTheme.colorScheme.error, style = style)
     }
 }

@@ -30,6 +30,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -64,12 +66,24 @@ internal fun AskBox(
             onDismiss = { building = false },
         )
     }
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    // The keyboard belongs to this bar; left open, it would cover the chat that opens next.
+    val leave = {
+        focus.clearFocus()
+        keyboard?.hide()
+    }
     val submit = {
         val question = text.trim()
         if (question.isNotEmpty()) {
+            leave()
             text = ""
             onAsk(question)
         }
+    }
+    val speak = {
+        leave()
+        onSpeak()
     }
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -119,7 +133,7 @@ internal fun AskBox(
                     }
                 }
                 // Filled: with nothing typed, speaking is the main action, as the send button is once there is text.
-                FilledIconButton(onClick = onSpeak, shape = CircleShape) {
+                FilledIconButton(onClick = speak, shape = CircleShape) {
                     Icon(painterResource(R.drawable.ic_mic), contentDescription = "Ask by voice", modifier = Modifier.size(20.dp))
                 }
             }

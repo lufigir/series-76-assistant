@@ -8,7 +8,7 @@ from src.auth.schemas import CurrentUser
 from src.conversations.repository import ConversationRepository
 from src.conversations.schemas import ConversationResponse, MessageDebug, MessageView, Page, SessionSummary
 from src.conversations.titles import question_title, settled_title
-from src.core.errors import AppError
+from src.core.errors import AppError, ForbiddenError
 from src.core.logging import logger
 
 # The lease outlives the turn's deadline, so it only ever expires after a crash.
@@ -112,6 +112,8 @@ class ConversationService:
         return await self._conversations.messages(conversation_id, cursor)
 
     async def debug(self, user: CurrentUser, message_id: uuid.UUID) -> MessageDebug:
+        if not user.is_developer:
+            raise ForbiddenError("Technical details are for developers")
         debug = await self._conversations.debug(message_id, user.id)
         if debug is None:
             raise NotFoundError("No debug data for this message")

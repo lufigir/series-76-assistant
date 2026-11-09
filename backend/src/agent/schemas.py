@@ -26,6 +26,8 @@ class ToolTrace(BaseModel):
 
 
 class ModelCallTrace(BaseModel):
+    # The model the provider says answered, which differs from the configured one when the fallback took the call.
+    model: str | None = None
     input_tokens: int | None
     output_tokens: int | None
     cost_usd: float | None

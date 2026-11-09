@@ -8,16 +8,15 @@ The assessment asks for a debug screen inside the app, for developers only: for 
 
 ## Decision
 
-Each assistant message stores its trace in a `trace` JSONB column: model, prompt version, tools with their parameters, results and latency, model calls with tokens and cost, and what the validator rejected. `GET /api/messages/{id}/debug` returns it to the owner of the message only, and anyone else gets a 404. The app opens it from a long press on an answer, with no button or hint, in every build type.
+Each assistant message stores its trace in a `trace` JSONB column: model, prompt version, tools with their parameters, results and latency, model calls with tokens and cost, and what the validator rejected. `GET /api/messages/{id}/debug` requires the `is_developer` flag on the user, read from the database on each request, and answers 403 without it. A developer sees only the traces of their own answers, and another user's message gets a 404. The app asks `GET /api/auth/me` for the flag and offers "Technical details" in the long-press menu of an answer only to a developer, with no button or hint, in every build type. Of the test users, Ana is a developer and Bruno is not.
 
 The trace holds no system prompt, no keys and nothing from another user. The tool results come from the public catalog.
 
 ## Consequences
 
-A hidden gesture stops end users from opening the screen by mistake, and it controls no access. Any user who finds it sees the cost of each turn and the numbers the validator rejected, which is internal detail rather than a secret. OWASP's mobile testing guide (MASTG-TEST-0084) expects debug views to be absent from release builds, so this design fits an assessment and not a store release.
+The server enforces the role. An end user who calls the route directly gets a 403; the app only hides the entry. Reading the flag from the database instead of the token means revoking it takes effect on the next request. The screen still ships in every build, which OWASP's mobile testing guide (MASTG-TEST-0084) advises against for a store release; there it would live only in an internal build.
 
-In production we would move the control to the server and the traces out of the product database:
+In production we would also move the traces out of the product database:
 
-- The debug route requires a developer role carried in the token, or the screen exists only in an internal build.
 - Model calls and tool calls become OpenTelemetry spans under the GenAI conventions (`gen_ai.*`: model, tokens, duration), sent to the team's backend, with prompt and response content off by default because conversations can hold personal data. A self-hosted Langfuse keeps them in our own infrastructure. A hosted service such as LangSmith sends conversations to a third party, so it would need a row in the personal data table in `AGENTS.md`.
 - The `trace` column then keeps only what the product needs, or goes away.

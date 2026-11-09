@@ -4,7 +4,7 @@ import time
 from typing import Any, cast
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import ModelCallLimitMiddleware, ToolCallLimitMiddleware
+from langchain.agents.middleware import ModelCallLimitMiddleware, ModelFallbackMiddleware, ToolCallLimitMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -33,6 +33,7 @@ class Assistant:
         model_name: str,
         checkpointer: BaseCheckpointSaver[Any],
         catalog: CatalogProvider,
+        fallback: BaseChatModel | None = None,
     ) -> None:
         self._model_name = model_name
         self._catalog = catalog
@@ -41,6 +42,9 @@ class Assistant:
             ModelCallLimitMiddleware(run_limit=MAX_MODEL_CALLS, exit_behavior="end"),
             ToolCallLimitMiddleware(run_limit=MAX_TOOL_CALLS, exit_behavior="end"),
         ]
+        if fallback is not None:
+            # Last means innermost, so the validator above checks the fallback's answer like any other.
+            middleware.append(ModelFallbackMiddleware(fallback))
         self._agent = create_agent(
             model=model,
             tools=TOOLS,

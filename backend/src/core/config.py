@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     llm_provider: Literal["openrouter", "google"] = "openrouter"
     llm_model: str = "deepseek/deepseek-v4.1-flash"
+    llm_fallback_model: str | None = None
     transcription_model: str = "google/gemini-3.1-flash-lite"
     # Reasoning models spend part of this on thinking they always do, whatever the request asks: deepseek used up 800
     # twice on a request no model could meet and returned an empty answer. Answers themselves run near 200 tokens.

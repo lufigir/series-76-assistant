@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
+from langchain_core.messages import AIMessage
 
 from seed import TEST_USERS
 from src.agent.tools import TOOL_NAMES
@@ -334,6 +335,30 @@ async def test_a_failed_first_turn_leaves_no_conversation(
     assert (await client.get("/api/sessions", headers=other_headers)).json() == before
 
 
+async def test_a_failing_model_hands_the_turn_to_the_fallback(
+    client: AsyncClient, headers: dict[str, str], app: FastAPI
+) -> None:
+    primary = ScriptedChatModel(script=[RuntimeError("provider down"), RuntimeError("provider down")])
+    lookup = call("get_actuator", part_number=PART)
+    backup = ScriptedChatModel(
+        script=[
+            lookup.model_copy(update={"response_metadata": {"model_name": "backup-model"}}),
+            AIMessage(content=RIGHT, response_metadata={"model_name": "backup-model"}),
+        ]
+    )
+    application = create_app(app.state.settings, chat_model=primary, transcription_model=primary, fallback_model=backup)
+    async with application.router.lifespan_context(application):
+        transport = ASGITransport(app=application, raise_app_exceptions=False)
+        async with AsyncClient(transport=transport, base_url="http://test") as backup_client:
+            response = await ask(backup_client, headers, f"Torque of {PART}?")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["answer"] == RIGHT
+            assert [product["part_number"] for product in body["products"]] == [PART]
+            debug = (await backup_client.get(f"/api/messages/{body['message_id']}/debug", headers=headers)).json()
+    assert [model_call["model"] for model_call in debug["trace"]["model_calls"]] == ["backup-model", "backup-model"]
+
+
 @pytest.fixture
 async def slow_app(app: FastAPI, chat_model: ScriptedChatModel) -> AsyncIterator[FastAPI]:
     settings = app.state.settings.model_copy(update={"turn_timeout_seconds": 1})
@@ -494,14 +519,25 @@ async def test_someone_elses_conversation_does_not_exist_for_you(
     chat_model: ScriptedChatModel,
 ) -> None:
     chat_model.script = [call("get_actuator", part_number=PART), RIGHT]
-    body = (await ask(client, headers, "Mine")).json()
-    session_id, message_id = body["session_id"], body["message_id"]
+    session_id = (await ask(client, headers, "Mine")).json()["session_id"]
 
     calls_before = len(chat_model.calls)
     assert (await ask(client, other_headers, "Theirs", session_id)).status_code == 404
     assert len(chat_model.calls) == calls_before
     assert (await client.get(f"/api/sessions/{session_id}/messages", headers=other_headers)).status_code == 404
-    assert (await client.get(f"/api/messages/{message_id}/debug", headers=other_headers)).status_code == 404
+    # The developer role opens traces of the developer's own answers, never another user's.
+    chat_model.script = ["Theirs."]
+    theirs = (await ask(client, other_headers, "Theirs")).json()["message_id"]
+    assert (await client.get(f"/api/messages/{theirs}/debug", headers=headers)).status_code == 404
+
+
+async def test_the_trace_is_only_for_developers(
+    client: AsyncClient, other_headers: dict[str, str], chat_model: ScriptedChatModel
+) -> None:
+    chat_model.script = ["Hello."]
+    message_id = (await ask(client, other_headers, "Hi")).json()["message_id"]
+    response = await client.get(f"/api/messages/{message_id}/debug", headers=other_headers)
+    assert response.status_code == 403
 
 
 async def test_an_unknown_session_is_404_and_a_malformed_one_is_422(

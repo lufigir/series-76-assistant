@@ -18,6 +18,7 @@ class CurrentUser(BaseModel):
 
     id: uuid.UUID
     email: str
+    is_developer: bool
 
 
 class UserCredentials(CurrentUser):

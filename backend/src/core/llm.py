@@ -14,6 +14,10 @@ def create_chat_model(settings: Settings) -> BaseChatModel:
     return _create_model(settings, settings.llm_model)
 
 
+def create_fallback_model(settings: Settings) -> BaseChatModel | None:
+    return _create_model(settings, settings.llm_fallback_model) if settings.llm_fallback_model else None
+
+
 def create_transcription_model(settings: Settings) -> BaseChatModel:
     return _create_model(settings, settings.transcription_model)
 

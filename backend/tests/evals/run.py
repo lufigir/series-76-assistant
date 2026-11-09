@@ -20,7 +20,7 @@ from sqlalchemy import create_engine
 from testcontainers.community.postgres import PostgresContainer
 
 from alembic import command
-from seed import TEST_USERS, seed
+from seed import DEVELOPERS, TEST_USERS, seed
 from src.agent.prompts import PROMPT_VERSION
 from src.core.config import Settings
 from src.main import create_app
@@ -146,7 +146,7 @@ async def run_all(args: argparse.Namespace) -> tuple[str, str]:
         async with app.router.lifespan_context(app):
             transport = ASGITransport(app=app, raise_app_exceptions=False)
             async with AsyncClient(transport=transport, base_url="http://evals", timeout=120) as client:
-                email, password = next(iter(TEST_USERS.items()))
+                email, password = next((e, p) for e, p in TEST_USERS.items() if e in DEVELOPERS)
                 token = (await client.post("/api/auth/login", json={"email": email, "password": password})).json()
                 client.headers["Authorization"] = f"Bearer {token['token']}"
                 for repetition in range(args.repeat):

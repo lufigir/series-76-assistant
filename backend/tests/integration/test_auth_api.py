@@ -29,14 +29,34 @@ def bearer(token: str) -> dict[str, str]:
 async def test_health_is_public_and_reaches_the_database(client: AsyncClient) -> None:
     response = await client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json()["status"] == "ok"
+
+
+async def test_health_names_the_configured_models(app: FastAPI, client: AsyncClient) -> None:
+    # An evaluator who edited .env can tell whether the container picked it up without spending a turn.
+    settings = app.state.settings
+    response = await client.get("/health")
+    assert response.json() == {
+        "status": "ok",
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.llm_model,
+        "llm_fallback_model": settings.llm_fallback_model,
+        "transcription_model": settings.transcription_model,
+    }
 
 
 async def test_login_returns_a_token_that_identifies_the_user(client: AsyncClient) -> None:
     response = await client.get("/api/auth/me", headers=bearer(await login(client)))
     assert response.status_code == 200
-    assert set(response.json()) == {"id", "email"}
+    assert set(response.json()) == {"id", "email", "is_developer"}
     assert response.json()["email"] == EMAIL
+
+
+async def test_only_the_developer_test_user_is_a_developer(client: AsyncClient) -> None:
+    developer = await client.get("/api/auth/me", headers=bearer(await login(client)))
+    engineer = await client.get("/api/auth/me", headers=bearer(await login(client, OTHER_EMAIL, OTHER_PASSWORD)))
+    assert developer.json()["is_developer"] is True
+    assert engineer.json()["is_developer"] is False
 
 
 async def test_each_user_gets_their_own_identity(client: AsyncClient) -> None:

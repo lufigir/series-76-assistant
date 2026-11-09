@@ -88,6 +88,7 @@ async def _timed_call(
     usage = message.usage_metadata
     record.model_calls.append(
         ModelCallTrace(
+            model=message.response_metadata.get("model_name"),
             input_tokens=usage["input_tokens"] if usage else None,
             output_tokens=usage["output_tokens"] if usage else None,
             cost_usd=message.response_metadata.get("cost"),

@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, delete, select
+from sqlalchemy import Engine, create_engine, delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,8 @@ TEST_USERS = {
     "ana@series76.test": "ana-series76-demo",
     "bruno@series76.test": "bruno-series76-demo",
 }
+# Ana can open the debug trace; Bruno is an end user and gets a 403.
+DEVELOPERS = {"ana@series76.test"}
 
 POWER_SUPPLIES = {
     "110V single phase": PowerSupply.V110_SINGLE_PHASE,
@@ -91,6 +93,9 @@ def seed_users(session: Session) -> None:
     for email, password in TEST_USERS.items():
         if email not in existing:
             session.add(User(email=email, password_hash=hash_password(password)))
+    session.flush()
+    # Set on every start, so a database seeded before the role existed gets it too.
+    session.execute(update(User).values(is_developer=User.email.in_(DEVELOPERS)))
 
 
 def seed(engine: Engine) -> int:

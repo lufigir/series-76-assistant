@@ -28,6 +28,11 @@ class UnauthorizedError(AppError):
         super().__init__(401, message, headers={"WWW-Authenticate": "Bearer"})
 
 
+class ForbiddenError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(403, message)
+
+
 def _response(
     status: int, message: str, data: dict[str, Any] | None = None, headers: dict[str, str] | None = None
 ) -> JSONResponse:

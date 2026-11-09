@@ -86,7 +86,7 @@ private fun SignedInNavigation(container: AppContainer) {
     val backStack = rememberNavBackStack(ConversationsKey)
     NavDisplay(
         backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
+        onBack = { backStack.lastOrNull()?.let(backStack::popIfOnTop) },
         entryDecorators =
             listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()),
         transitionSpec = { forward() },
@@ -130,7 +130,7 @@ private fun SignedInNavigation(container: AppContainer) {
                                         }
                                     },
                             ),
-                        onBack = { backStack.removeLastOrNull() },
+                        onBack = { backStack.popIfOnTop(key) },
                         onOpenDebug = { backStack.add(DebugKey(it)) },
                     )
                 }
@@ -145,7 +145,7 @@ private fun SignedInNavigation(container: AppContainer) {
                                         }
                                     },
                             ),
-                        onBack = { backStack.removeLastOrNull() },
+                        onBack = { backStack.popIfOnTop(key) },
                     )
                 }
             },

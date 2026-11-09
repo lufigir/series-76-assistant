@@ -16,6 +16,7 @@ from src.core.checkpoints import open_checkpointer
 from src.core.config import Settings, get_settings
 from src.core.database import create_engine, create_session_factory, ping
 from src.core.errors import register_error_handlers
+from src.core.limits import MAX_JSON_BODY_BYTES, BodyLimitMiddleware
 from src.core.llm import create_chat_model, create_transcription_model
 from src.core.logging import TraceMiddleware, configure_logging
 from src.transcriptions.router import router as transcriptions_router
@@ -50,6 +51,8 @@ def create_app(
     app.state.settings = settings
     app.state.chat_model = chat_model
     app.state.transcription_model = transcription_model
+    # Audio reads its own body under its own 5 MB limit, in read_audio.
+    app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_JSON_BODY_BYTES, exempt=frozenset({"/api/transcriptions"}))
     app.add_middleware(TraceMiddleware)
     register_error_handlers(app)
     app.include_router(auth_router)

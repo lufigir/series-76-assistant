@@ -74,7 +74,7 @@ Beyond the fixed `session_id` and `answer`, a turn returns:
 - `follow_ups`, next steps the app offers as buttons, such as "Modulating" or "Drop the torque minimum". Code writes them from the search result, and a tap sends one as an ordinary question.
 - `requirements`, what the conversation has accumulated so far.
 
-A second turn on a conversation that is still answering gets a 409, and a user past 60 turns in a minute gets a 429 with `Retry-After`. A conversation that belongs to another user gets a 404. Errors share one shape: `{status, message, data, trace_id}`.
+A second turn on a conversation that is still answering gets a 409, and a user past 60 turns in a minute gets a 429 with `Retry-After`. A conversation that belongs to another user gets a 404, and a JSON body over 64 KB gets a 413 before it is read. Errors share one shape: `{status, message, data, trace_id}`.
 
 ## Ingestion
 
